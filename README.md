@@ -3,7 +3,21 @@
 
 A revolutionary chess game built in Unreal Engine 5 that transforms traditional gameplay into an immersive medieval battle experience, complete with dynamic battle sequences, AI-driven storytelling, and cinematic endgame reenactments.
 
-![Iron Chess Banner](https://via.placeholder.com/800x300/2c3e50/ecf0f1?text=Iron+Chess+%E2%9A%94%EF%B8%8F%F0%9F%8F%B0)
+```
+    ⚔️  I R O N   C H E S S  ⚔️
+    🏰  Medieval Chess Combat  🏰
+    
+    ┌─────────────────────────────┐
+    │  ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜  │
+    │  ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟  │
+    │  · · · · · · · ·  │
+    │  · · · · · · · ·  │
+    │  · · · · · · · ·  │
+    │  · · · · · · · ·  │
+    │  ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙  │
+    │  ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖  │
+    └─────────────────────────────┘
+```
 
 ---
 
