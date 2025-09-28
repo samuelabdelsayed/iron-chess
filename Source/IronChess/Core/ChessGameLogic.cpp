@@ -554,3 +554,173 @@ bool UChessGameLogic::WouldMoveCauseCheck(const FChessMove& Move, EPieceColor Co
     // Simplified check - would need proper implementation
     return false;
 }
+
+void UChessGameLogic::GeneratePawnMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    const FChessPiece& Pawn = GetPieceAt(Position);
+    int32 Direction = (Pawn.Color == EPieceColor::White) ? 1 : -1;
+    
+    // Forward move
+    FChessPosition Forward(Position.Rank + Direction, Position.File);
+    if (IsOnBoard(Forward) && GetPieceAt(Forward).IsEmpty())
+    {
+        Moves.Add(FChessMove(Position, Forward));
+        
+        // Double move from starting position
+        if (!Pawn.HasMoved)
+        {
+            FChessPosition DoubleForward(Position.Rank + 2 * Direction, Position.File);
+            if (IsOnBoard(DoubleForward) && GetPieceAt(DoubleForward).IsEmpty())
+            {
+                Moves.Add(FChessMove(Position, DoubleForward));
+            }
+        }
+    }
+    
+    // Diagonal captures
+    for (int32 FileOffset : {-1, 1})
+    {
+        FChessPosition CapturePos(Position.Rank + Direction, Position.File + FileOffset);
+        if (IsOnBoard(CapturePos))
+        {
+            const FChessPiece& Target = GetPieceAt(CapturePos);
+            if (!Target.IsEmpty() && Target.Color != Pawn.Color)
+            {
+                Moves.Add(FChessMove(Position, CapturePos));
+            }
+            // En passant
+            else if (CapturePos == BoardState.EnPassantTarget)
+            {
+                Moves.Add(FChessMove(Position, CapturePos));
+            }
+        }
+    }
+}
+
+void UChessGameLogic::GenerateRookMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    // Horizontal and vertical directions
+    TArray<FIntPoint> Directions = {{1,0}, {-1,0}, {0,1}, {0,-1}};
+    
+    for (const FIntPoint& Dir : Directions)
+    {
+        for (int32 Distance = 1; Distance < 8; Distance++)
+        {
+            FChessPosition Target(Position.Rank + Dir.X * Distance, Position.File + Dir.Y * Distance);
+            if (!IsOnBoard(Target))
+                break;
+                
+            const FChessPiece& TargetPiece = GetPieceAt(Target);
+            if (TargetPiece.IsEmpty())
+            {
+                Moves.Add(FChessMove(Position, Target));
+            }
+            else
+            {
+                if (TargetPiece.Color != GetPieceAt(Position).Color)
+                {
+                    Moves.Add(FChessMove(Position, Target));
+                }
+                break; // Can't continue past piece
+            }
+        }
+    }
+}
+
+void UChessGameLogic::GenerateKnightMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    // Knight moves in L-shape
+    TArray<FIntPoint> KnightMoves = {{2,1}, {2,-1}, {-2,1}, {-2,-1}, {1,2}, {1,-2}, {-1,2}, {-1,-2}};
+    
+    for (const FIntPoint& Move : KnightMoves)
+    {
+        FChessPosition Target(Position.Rank + Move.X, Position.File + Move.Y);
+        if (IsOnBoard(Target))
+        {
+            const FChessPiece& TargetPiece = GetPieceAt(Target);
+            if (TargetPiece.IsEmpty() || TargetPiece.Color != GetPieceAt(Position).Color)
+            {
+                Moves.Add(FChessMove(Position, Target));
+            }
+        }
+    }
+}
+
+void UChessGameLogic::GenerateBishopMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    // Diagonal directions
+    TArray<FIntPoint> Directions = {{1,1}, {1,-1}, {-1,1}, {-1,-1}};
+    
+    for (const FIntPoint& Dir : Directions)
+    {
+        for (int32 Distance = 1; Distance < 8; Distance++)
+        {
+            FChessPosition Target(Position.Rank + Dir.X * Distance, Position.File + Dir.Y * Distance);
+            if (!IsOnBoard(Target))
+                break;
+                
+            const FChessPiece& TargetPiece = GetPieceAt(Target);
+            if (TargetPiece.IsEmpty())
+            {
+                Moves.Add(FChessMove(Position, Target));
+            }
+            else
+            {
+                if (TargetPiece.Color != GetPieceAt(Position).Color)
+                {
+                    Moves.Add(FChessMove(Position, Target));
+                }
+                break; // Can't continue past piece
+            }
+        }
+    }
+}
+
+void UChessGameLogic::GenerateQueenMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    // Queen combines rook and bishop moves
+    GenerateRookMoves(Position, Moves);
+    GenerateBishopMoves(Position, Moves);
+}
+
+void UChessGameLogic::GenerateKingMoves(const FChessPosition& Position, TArray<FChessMove>& Moves) const
+{
+    // All adjacent squares
+    for (int32 RankOffset = -1; RankOffset <= 1; RankOffset++)
+    {
+        for (int32 FileOffset = -1; FileOffset <= 1; FileOffset++)
+        {
+            if (RankOffset == 0 && FileOffset == 0)
+                continue;
+                
+            FChessPosition Target(Position.Rank + RankOffset, Position.File + FileOffset);
+            if (IsOnBoard(Target))
+            {
+                const FChessPiece& TargetPiece = GetPieceAt(Target);
+                if (TargetPiece.IsEmpty() || TargetPiece.Color != GetPieceAt(Position).Color)
+                {
+                    Moves.Add(FChessMove(Position, Target));
+                }
+            }
+        }
+    }
+    
+    // Castling moves
+    const FChessPiece& King = GetPieceAt(Position);
+    if (!King.HasMoved)
+    {
+        // Kingside castling
+        if (CanCastle(King.Color, true))
+        {
+            FChessPosition KingsideTarget(Position.Rank, Position.File + 2);
+            Moves.Add(FChessMove(Position, KingsideTarget));
+        }
+        
+        // Queenside castling
+        if (CanCastle(King.Color, false))
+        {
+            FChessPosition QueensideTarget(Position.Rank, Position.File - 2);
+            Moves.Add(FChessMove(Position, QueensideTarget));
+        }
+    }
+}

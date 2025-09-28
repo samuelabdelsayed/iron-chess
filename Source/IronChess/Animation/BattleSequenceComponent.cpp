@@ -53,3 +53,74 @@ float UBattleSequenceComponent::GetCurrentBattleProgress() const
 {
     return 1.0f;
 }
+
+EBattleSequenceType UBattleSequenceComponent::DetermineBattleType(const FBattleContext& Context) const
+{
+    // Determine battle type based on move context
+    if (Context.DefenderType != EPieceType::None) // This is a capture
+    {
+        if (Context.DefenderType == EPieceType::Queen)
+        {
+            return EBattleSequenceType::QueenCapture;
+        }
+        else if (Context.DefenderType == EPieceType::Rook)
+        {
+            return EBattleSequenceType::RookCapture;
+        }
+        else if (Context.DefenderType == EPieceType::Bishop)
+        {
+            return EBattleSequenceType::BishopCapture;
+        }
+        else if (Context.DefenderType == EPieceType::Knight)
+        {
+            return EBattleSequenceType::KnightCapture;
+        }
+        else if (Context.DefenderType == EPieceType::Pawn)
+        {
+            return EBattleSequenceType::PawnCapture;
+        }
+    }
+    else if (Context.bIsCheckMove)
+    {
+        return EBattleSequenceType::Check;
+    }
+    else if (Context.bIsCheckmateMove)
+    {
+        return EBattleSequenceType::Checkmate;
+    }
+    else if (Context.TriggerMove.MoveType == EMoveType::Castling)
+    {
+        return EBattleSequenceType::Castling;
+    }
+    else if (Context.TriggerMove.MoveType == EMoveType::EnPassant)
+    {
+        return EBattleSequenceType::EnPassant;
+    }
+    else if (Context.TriggerMove.MoveType == EMoveType::Promotion)
+    {
+        return EBattleSequenceType::Promotion;
+    }
+    else
+    {
+        // Default battle type based on piece moved
+        switch (Context.AttackerType)
+        {
+            case EPieceType::Pawn:
+                return EBattleSequenceType::PawnCapture;
+            case EPieceType::Rook:
+                return EBattleSequenceType::RookCapture;
+            case EPieceType::Bishop:
+                return EBattleSequenceType::BishopCapture;
+            case EPieceType::Queen:
+                return EBattleSequenceType::QueenCapture;
+            case EPieceType::King:
+                return EBattleSequenceType::KingCapture;
+            case EPieceType::Knight:
+                return EBattleSequenceType::KnightCapture;
+            default:
+                return EBattleSequenceType::None;
+        }
+    }
+    
+    return EBattleSequenceType::None;
+}
