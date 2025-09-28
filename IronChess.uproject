@@ -1,0 +1,53 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.6",
+	"Category": "Games",
+	"Description": "A photorealistic 3D interactive chess game with medieval aesthetic and cinematic reenactment",
+	"Modules": [
+		{
+			"Name": "IronChess",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"CoreUObject",
+				"UMG",
+				"Slate",
+				"SlateCore",
+				"Niagara",
+				"LevelSequence",
+				"MovieScene",
+				"CinematicCamera",
+				"AIModule"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSequenceEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "AISupport",
+			"Enabled": true
+		},
+		{
+			"Name": "GeometryProcessing",
+			"Enabled": true
+		}
+	],
+	"TargetPlatforms": [
+		"Windows",
+		"Mac",
+		"PS5",
+		"XSX"
+	]
+}
