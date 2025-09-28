@@ -1,0 +1,75 @@
+# Iron Chess .gitignore
+
+# Unreal Engine
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vscode/
+.vs/
+
+# Build outputs
+Build/
+*.sln
+*.xcworkspace/
+
+# Compiled Object files
+*.o
+*.obj
+*.slo
+*.lo
+*.so
+*.dylib
+*.dll
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so.*
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.lib
+
+# Executables  
+*.exe
+*.out
+*.app
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Version control
+*.orig
+
+# IDE files
+*.swp
+*.swo
+*~

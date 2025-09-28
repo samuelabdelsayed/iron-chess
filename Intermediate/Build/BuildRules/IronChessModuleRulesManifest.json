@@ -1,8 +1,0 @@
-{
-	"SourceFiles": [
-		"/Users/samuelabdelsayed/Documents/Repositories/iron-chess/Source/IronChess/IronChess.Build.cs",
-		"/Users/samuelabdelsayed/Documents/Repositories/iron-chess/Source/IronChess.Target.cs",
-		"/Users/samuelabdelsayed/Documents/Repositories/iron-chess/Source/IronChessEditor.Target.cs"
-	],
-	"EngineVersion": "5.6.1"
-}
