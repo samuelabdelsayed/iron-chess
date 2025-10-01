@@ -1,75 +1,59 @@
-# Iron Chess .gitignore
+# Iron Chess - Pure C++ Chess Game
 
-# Unreal Engine
-Binaries/
-DerivedDataCache/
-Intermediate/
-Saved/
+# Build directories
+build/
+bin/
+obj/
+
+# IDE files
 .vscode/
 .vs/
-
-# Build outputs
-Build/
-*.sln
 *.xcworkspace/
+*.sln
+*.vcxproj*
 
-# Compiled Object files
+# Compiled files
 *.o
 *.obj
-*.slo
-*.lo
 *.so
 *.dylib
 *.dll
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so.*
-*.dylib
-
-# Compiled Static libraries
-*.lai
-*.la
+*.a
 *.lib
 
-# Executables  
+# Executables
+IronChess
+IronChess.exe
 *.exe
 *.out
 *.app
 
-# Log files
-*.log
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Debug files
+*.dSYM/
+*.pdb
 
 # Temporary files
 *.tmp
 *.temp
+*.log
 
-# Package files
-*.7z
-*.dmg
-*.gz
-*.iso
-*.jar
-*.rar
-*.tar
-*.zip
+# Package managers
+vcpkg_installed/
+conan/
+.conan/
 
-# Version control
-*.orig
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# IDE files
-*.swp
-*.swo
-*~
+# Asset cache
+assets/cache/
+*.cache
+
+# Documentation builds
+docs/html/
+docs/latex/
