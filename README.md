@@ -1,11 +1,10 @@
 # Iron Chess ⚔️🏰
 ## Pure C++ Medieval Chess Experience
 
-A beautiful chess game built with modern C++ that brings the elegance of medieval times to classic chess gameplay, featuring 3D graphics, intelligent AI opponents, and immersive medieval theming.
+A beautiful chess game built with modern C++ that brings the elegance of medieval times to classic chess gameplay.
 
 ```
     ⚔️  I R O N   C H E S S  ⚔️
-    🏰  Medieval Chess Experience  🏰
     
     ┌─────────────────────────────┐
     │  ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜  │
@@ -21,15 +20,14 @@ A beautiful chess game built with modern C++ that brings the elegance of medieva
 
 ## ✨ Features
 
-- **🎮 Complete Chess Engine** - All rules including castling, en passant, promotion
-- **🧠 Smart AI** - 10 difficulty levels from beginner to legendary
-- **🏰 Medieval Theme** - Authentic medieval atmosphere and graphics
-- **⚡ High Performance** - 60+ FPS with modern C++20
-- **🌍 Cross-Platform** - Windows, macOS, and Linux support
+- **Complete Chess Engine** - All rules including castling, en passant, promotion
+- **Smart AI** - 10 difficulty levels from beginner to legendary
+- **Medieval Theme** - Authentic medieval atmosphere and graphics
+- **Cross-Platform** - Windows, macOS, and Linux support
 
 ## 🚀 Quick Start
 
-### Dependencies
+### Install Dependencies
 ```bash
 # macOS
 brew install cmake glfw glm
@@ -52,26 +50,6 @@ cd iron-chess
 - **Mouse Drag**: Orbit camera around board
 - **Scroll**: Zoom in/out
 - **ESC**: Game menu
-- **R**: Reset game
-
-## 🔧 Tech Stack
-
-- **C++20** - Modern language features
-- **OpenGL** - Cross-platform graphics
-- **GLFW** - Window management
-- **GLM** - 3D mathematics
-- **CMake** - Build system
-
-## 📁 Project Structure
-
-```
-iron-chess/
-├── src/           # C++ source files
-├── include/       # Header files
-├── assets/        # Models, textures, sounds
-├── CMakeLists.txt # Build configuration
-└── build.sh       # Build script
-```
 
 ## 🤝 Contributing
 
