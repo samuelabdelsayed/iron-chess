@@ -1,7 +1,7 @@
 # Iron Chess ⚔️🏰
-## Pure C++ Medieval Chess Experience
+## Medieval Chess Experience
 
-A beautiful chess game built with modern C++ that brings medieval elegance to classic chess gameplay.
+A chess game built with modern C++ that brings medieval elegance to classic chess gameplay.
 
 ## ✨ Features
 
