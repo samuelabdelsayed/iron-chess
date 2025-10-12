@@ -362,6 +362,23 @@ fn spawn_chess_pieces(
         ..default()
     });
 
+    // Special materials for knights - gold/bronze with emissive glow
+    let white_knight_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 0.84, 0.0),  // Gold
+        emissive: Color::srgb(0.3, 0.25, 0.0).into(),  // Warm glow
+        perceptual_roughness: 0.2,
+        metallic: 0.8,
+        ..default()
+    });
+
+    let black_knight_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.5, 0.2),  // Bronze
+        emissive: Color::srgb(0.2, 0.12, 0.05).into(),  // Warm glow
+        perceptual_roughness: 0.2,
+        metallic: 0.8,
+        ..default()
+    });
+
     // Iterate through board and spawn pieces
     for file in 0..8 {
         for rank in 0..8 {
@@ -369,17 +386,26 @@ fn spawn_chess_pieces(
             if let Some(piece) = game_state.game.board.get_piece(&pos) {
                 let mesh = create_piece_mesh(&mut meshes, piece.piece_type);
                 
-                let material = if piece.color == ChessColor::White {
-                    white_material.clone()
+                // Knights get special gold/bronze materials for maximum visibility
+                let material = if piece.piece_type == core_logic::PieceType::Knight {
+                    if piece.color == ChessColor::White {
+                        white_knight_material.clone()
+                    } else {
+                        black_knight_material.clone()
+                    }
                 } else {
-                    black_material.clone()
+                    if piece.color == ChessColor::White {
+                        white_material.clone()
+                    } else {
+                        black_material.clone()
+                    }
                 };
 
                 let world_pos = board_to_world_position(&pos);
                 
-                // Knights get extra scale for visibility
+                // Knights get MUCH larger scale for maximum visibility
                 let scale = if piece.piece_type == core_logic::PieceType::Knight {
-                    Vec3::splat(0.5)  // 25% larger than other pieces
+                    Vec3::splat(0.7)  // 75% larger than other pieces
                 } else {
                     Vec3::splat(0.4)
                 };
@@ -1224,66 +1250,184 @@ fn select_ai_move(legal_moves: &[ChessMove], game: &GameState, difficulty: u8) -
             // Beginner: Random moves
             legal_moves.choose(&mut rng).unwrap().clone()
         }
-        4..=6 => {
-            // Intermediate: Prefer captures and center control
-            let captures: Vec<_> = legal_moves.iter().filter(|m| m.is_capture()).collect();
-            
-            if !captures.is_empty() && rng.gen_bool(0.7) {
-                (*captures.choose(&mut rng).unwrap()).clone()
-            } else {
-                // Prefer center squares (e4, d4, e5, d5)
-                let center_moves: Vec<_> = legal_moves.iter()
-                    .filter(|m| {
-                        let (file, rank) = (m.to.file, m.to.rank);
-                        (file == 3 || file == 4) && (rank == 3 || rank == 4)
-                    })
-                    .collect();
-                
-                if !center_moves.is_empty() && rng.gen_bool(0.5) {
-                    (*center_moves.choose(&mut rng).unwrap()).clone()
-                } else {
-                    legal_moves.choose(&mut rng).unwrap().clone()
-                }
-            }
-        }
-        7..=10 => {
-            // Advanced: Prioritize captures, threats, and development
+        4..=7 => {
+            // Intermediate: Prefer captures, threats, and center control
             let mut scored_moves: Vec<(ChessMove, i32)> = legal_moves.iter()
                 .map(|m| {
                     let mut score = 0;
                     
-                    // Strongly prefer captures
+                    // Prefer captures (value based on captured piece)
                     if m.is_capture() {
                         score += 100;
                     }
                     
-                    // Value center control
+                    // Value center control strongly
                     let (file, rank) = (m.to.file, m.to.rank);
                     if (file == 3 || file == 4) && (rank == 3 || rank == 4) {
-                        score += 30;
+                        score += 50;
                     }
                     
-                    // Prefer moving pieces forward (development)
+                    // Prefer development (moving pieces forward)
                     if game.current_turn == ChessColor::White && m.to.rank > m.from.rank {
-                        score += 10;
+                        score += 15;
                     } else if game.current_turn == ChessColor::Black && m.to.rank < m.from.rank {
-                        score += 10;
+                        score += 15;
                     }
                     
-                    // Add some randomness to avoid predictability
-                    score += rng.gen_range(-5..=5);
+                    // Add randomness (less for higher difficulty)
+                    let randomness = if difficulty >= 7 { 3 } else { 8 };
+                    score += rng.gen_range(-randomness..=randomness);
                     
                     (m.clone(), score)
                 })
                 .collect();
             
-            // Sort by score and pick from top moves
             scored_moves.sort_by_key(|(_, score)| -score);
-            let top_n = (scored_moves.len() / 3).max(1);
+            let top_n = (scored_moves.len() / (difficulty as usize - 1)).max(1);
             scored_moves[..top_n].choose(&mut rng).unwrap().0.clone()
+        }
+        8..=10 => {
+            // Expert: Minimax algorithm with alpha-beta pruning
+            let depth = match difficulty {
+                8 => 3,
+                9 => 4,
+                _ => 5,  // difficulty 10
+            };
+            
+            info!("🧠 Running minimax search (depth: {})", depth);
+            minimax_best_move(game, depth, legal_moves)
         }
         _ => legal_moves.choose(&mut rng).unwrap().clone(),
     }
+}
+
+/// Minimax algorithm with alpha-beta pruning for strong AI
+fn minimax_best_move(game: &GameState, depth: u8, legal_moves: &[ChessMove]) -> ChessMove {
+    let maximizing = game.current_turn == ChessColor::White;
+    let mut best_move = legal_moves[0];
+    let mut best_score = if maximizing { i32::MIN } else { i32::MAX };
+    
+    for chess_move in legal_moves {
+        let mut game_copy = game.clone();
+        if game_copy.make_move(*chess_move).is_ok() {
+            let score = minimax(&game_copy, depth - 1, i32::MIN, i32::MAX, !maximizing);
+            
+            if maximizing && score > best_score {
+                best_score = score;
+                best_move = *chess_move;
+            } else if !maximizing && score < best_score {
+                best_score = score;
+                best_move = *chess_move;
+            }
+        }
+    }
+    
+    info!("🎯 Minimax selected move with score: {}", best_score);
+    best_move
+}
+
+/// Minimax with alpha-beta pruning
+fn minimax(game: &GameState, depth: u8, mut alpha: i32, mut beta: i32, maximizing: bool) -> i32 {
+    if depth == 0 {
+        return evaluate_position(game);
+    }
+    
+    let legal_moves = game.legal_moves();
+    
+    if legal_moves.is_empty() {
+        // Checkmate or stalemate
+        if game.is_in_check() {
+            return if maximizing { -10000 } else { 10000 };
+        }
+        return 0; // Stalemate
+    }
+    
+    if maximizing {
+        let mut max_eval = i32::MIN;
+        for chess_move in legal_moves {
+            let mut game_copy = game.clone();
+            if game_copy.make_move(chess_move).is_ok() {
+                let eval = minimax(&game_copy, depth - 1, alpha, beta, false);
+                max_eval = max_eval.max(eval);
+                alpha = alpha.max(eval);
+                if beta <= alpha {
+                    break; // Beta cutoff
+                }
+            }
+        }
+        max_eval
+    } else {
+        let mut min_eval = i32::MAX;
+        for chess_move in legal_moves {
+            let mut game_copy = game.clone();
+            if game_copy.make_move(chess_move).is_ok() {
+                let eval = minimax(&game_copy, depth - 1, alpha, beta, true);
+                min_eval = min_eval.min(eval);
+                beta = beta.min(eval);
+                if beta <= alpha {
+                    break; // Alpha cutoff
+                }
+            }
+        }
+        min_eval
+    }
+}
+
+/// Evaluate board position (positive = White winning, negative = Black winning)
+fn evaluate_position(game: &GameState) -> i32 {
+    let mut score = 0;
+    
+    // Material evaluation
+    for file in 0..8 {
+        for rank in 0..8 {
+            let pos = Position::new(file, rank);
+            if let Some(piece) = game.board.get_piece(&pos) {
+                let piece_value = match piece.piece_type {
+                    core_logic::PieceType::Pawn => 100,
+                    core_logic::PieceType::Knight => 320,
+                    core_logic::PieceType::Bishop => 330,
+                    core_logic::PieceType::Rook => 500,
+                    core_logic::PieceType::Queen => 900,
+                    core_logic::PieceType::King => 20000,
+                };
+                
+                let position_bonus = match piece.piece_type {
+                    core_logic::PieceType::Pawn => {
+                        // Pawns more valuable as they advance
+                        if piece.color == ChessColor::White {
+                            rank as i32 * 10
+                        } else {
+                            (7 - rank) as i32 * 10
+                        }
+                    }
+                    core_logic::PieceType::Knight | core_logic::PieceType::Bishop => {
+                        // Knights and bishops prefer center
+                        let center_distance = (file as i32 - 3).abs() + (rank as i32 - 3).abs();
+                        20 - center_distance * 5
+                    }
+                    _ => 0,
+                };
+                
+                let total_value = piece_value + position_bonus;
+                
+                if piece.color == ChessColor::White {
+                    score += total_value;
+                } else {
+                    score -= total_value;
+                }
+            }
+        }
+    }
+    
+    // Mobility bonus (more legal moves = better position)
+    let mobility = game.legal_moves().len() as i32 * 10;
+    if game.current_turn == ChessColor::White {
+        score += mobility;
+    } else {
+        score -= mobility;
+    }
+    
+    score
 }
 
 /// Animates battle sequences when pieces are captured
