@@ -1,150 +1,171 @@
 # Iron Chess ⚔️🏰
 
-Real-time 3D medieval chess with OpenGL rendering, authentic piece meshes, and interactive gameplay. Experience chess as an epic battlefield with detailed medieval-themed pieces and cinematic battle sequences.
+Immersive 3D medieval chess built with Rust and the Bevy game engine. Experience chess as an epic battlefield with physically-based rendering, atmospheric lighting, and smooth gameplay set in medieval England.
 
 ## ✨ Features
 
 ### 🎨 Visual Excellence
-- **Real 3D OpenGL Rendering** - Hardware-accelerated graphics with proper lighting and shadows
-- **Medieval Piece Design** - Authentic models including horse-headed knights, mitred bishops, castle towers, and centurion pawns
-- **Enhanced Lighting** - Solid piece colors with directional lighting for depth and realism
-- **Smooth Animations** - Visual feedback for piece movement and selections
+- **PBR Rendering** - Physically-based materials with authentic stone and metallic surfaces
+- **Medieval Atmosphere** - Moonlit battlefield with flickering torchlight ambiance
+- **Distinctive Piece Meshes** - Recognizable 3D models including L-shaped knights with horse heads
+- **Smooth Visuals** - 60 FPS gameplay with anti-aliasing and depth rendering
 
 ### 🎮 Interactive Gameplay
-- **Intuitive Controls** - Click to select, click to move with visual highlighting
-- **Move Validation** - Real-time highlighting of valid moves (yellow=selected, green=legal moves)
-- **Dynamic Camera** - Free orbit, zoom, and 4 preset views (White, Black, Top, Side)
-- **Battle Sequences** - Cinematic animations triggered during gameplay
+- **Intuitive Menu System** - Choose your color and AI difficulty with visual feedback
+- **Point-and-Click Controls** - Select pieces and moves with mouse ray-casting
+- **Persistent Visual Feedback** - Selected menu buttons stay highlighted (bright yellow/purple/green)
+- **Dynamic Camera** - Right-click drag to rotate, keyboard controls, mouse wheel zoom
 
 ### 🤖 AI Opponent
-- **6 Difficulty Levels** - From Peasant (beginner) to Legendary (grandmaster)
-- **Adaptive Strategy** - AI personality changes with difficulty
-- **Medieval Descriptions** - Narrative flavor text for moves and captures
+- **10 Difficulty Levels** - Configurable challenge from 1 (beginner) to 10 (expert)
+- **Legal Move Engine** - AI makes only valid chess moves
+- **Turn-Based Play** - Proper White/Black alternation with state management
 
 ### ♟️ Complete Chess Engine
-- **All Standard Rules** - Castling, en passant, pawn promotion, check/checkmate
-- **Turn-Based System** - Proper White/Black alternation
-- **Move Validation** - Prevents illegal moves, self-check, and rule violations
-- **Game State Tracking** - Full board history and move counting
+- **All Standard Rules** - Castling, en passant, pawn promotion, check/checkmate detection
+- **Move Validation** - Comprehensive legal move generation prevents illegal moves
+- **Bitflag System** - Efficient move encoding with capture/castle/promotion flags
+- **Algebraic Notation** - Full support for standard chess notation (e2-e4, etc.)
 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies (macOS)
-brew install cmake glfw glm
+# Prerequisites: Rust 1.70+ with cargo
+# Install from https://rustup.rs/
 
-# Clone and build
+# Clone and run
 git clone https://github.com/samuelabdelsayed/iron-chess.git
 cd iron-chess
-bash build.sh
+cargo run --release
 
-# Play!
-./build/bin/IronChess
+# Development build (faster compile, slower runtime)
+cargo run
 ```
 
 ### First Launch
-1. Choose your army color (White plays first)
-2. Select difficulty level (1-6)
-3. 3D window opens with the medieval battlefield
-4. Click a piece, see valid moves highlighted, click destination
+1. **Main Menu** - Press Start Game
+2. **Color Selection** - Click White or Black (buttons turn bright yellow/purple when selected)
+3. **Difficulty Selection** - Choose AI level 1-10 (button turns bright green when selected)
+4. **Play!** - 3D board loads with pieces ready
 
 ## 🎮 Controls
 
+### Menu Navigation
+| Action | Control |
+|--------|---------|
+| Select Button | **Left Click** |
+| Confirm Selection | **Click highlighted button again** |
+
+### In-Game Controls
 | Action | Control |
 |--------|---------|
 | Select & Move Pieces | **Left Click** |
-| Rotate Camera | **Click + Drag** |
+| Rotate Camera | **Right Click + Drag** |
 | Zoom In/Out | **Mouse Scroll** |
-| White View | **Key 1** |
-| Black View | **Key 2** |
-| Top-Down View | **Key 3** |
-| Side View | **Key 4** |
-| Battle Animation | **Space** |
-| Exit Game | **ESC** |
+| Pan Left/Right | **A / D Keys** |
+| Pan Forward/Back | **W / S Keys** |
+| Pan Up/Down | **Q / E Keys** |
 
 ## 🏗️ Architecture
 
 ```
 iron-chess/
-├── src/
-│   ├── core/           # Game engine & main loop
-│   ├── rendering/      # OpenGL graphics & shaders
-│   ├── gameplay/       # Chess logic & input handling
-│   ├── ai/             # AI opponent system
-│   └── math/           # Utilities & transformations
-├── include/            # Header files
-└── build/              # Compiled binaries
+├── crates/
+│   ├── core-logic/        # Chess engine library
+│   │   ├── board.rs       # 8x8 board state & castling
+│   │   ├── pieces.rs      # Color, PieceType, Position
+│   │   ├── moves.rs       # ChessMove with bitflags
+│   │   ├── validation.rs  # Legal move generation
+│   │   └── lib.rs         # GameState, make_move, checkmate
+│   └── iron-chess/        # Bevy game binary
+│       └── src/main.rs    # ECS systems, rendering, UI
+├── Cargo.toml             # Workspace configuration
+└── target/                # Build artifacts (gitignored)
 ```
 
 ### Key Technologies
-- **Language**: C++20
-- **Graphics**: OpenGL 3.3 Core Profile
-- **Windowing**: GLFW 3.x
-- **Mathematics**: GLM (OpenGL Mathematics)
-- **Build System**: CMake
+- **Language**: Rust 2021 Edition
+- **Game Engine**: Bevy 0.14 (ECS architecture)
+- **Rendering**: PBR materials with HDR, MSAA, depth prepass
+- **Dependencies**: rand 0.8, serde, bitflags 2.6, tracing
+- **Build System**: Cargo with workspace structure
 
 ## 🎯 Gameplay Tips
 
-- **Opening Moves**: Start with center pawns (e4, d4) or develop knights early
-- **Highlighting System**: Yellow shows selected piece, green shows where it can move
-- **Camera Navigation**: Use preset views (1-4) to see the board from different angles
-- **Valid Moves**: The game only allows legal chess moves - invalid attempts are blocked
-- **AI Difficulty**: Start with Knight (Level 3) for balanced play
+- **Menu Selection**: Buttons stay highlighted after selection - click multiple times to confirm
+- **Camera Control**: Right-click and drag for free rotation, keyboard for fine positioning
+- **Valid Moves**: Game prevents illegal moves - only legal squares are clickable
+- **Opening Strategy**: Classic openings work - e4, d4, Nf3, Nc3
+- **Knight Recognition**: L-shaped pieces with forward-facing horse heads
 
 ## 📋 Requirements
 
-- **Operating System**: macOS (10.14+)
-- **Graphics**: OpenGL 3.3+ compatible GPU
-- **Build Tools**: CMake 3.15+, C++20 compiler
-- **Libraries**: GLFW 3.x, GLM
-- **Display**: Recommended 1200x800 or higher resolution
+- **Operating System**: macOS, Linux, or Windows
+- **Rust**: 1.70 or newer (install via [rustup.rs](https://rustup.rs))
+- **Graphics**: Modern GPU with Vulkan/Metal/DirectX 12 support
+- **Memory**: 4GB RAM minimum
+- **Display**: 1280x720 or higher resolution
 
 ## 🔧 Development
 
 ```bash
-# Clean build
-make clean
-bash build.sh
+# Check for warnings
+cargo clippy
 
-# Debug build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make
+# Run tests
+cargo test
 
-# Run tests (if implemented)
-./build/bin/IronChessTests
+# Build optimized release
+cargo build --release
+
+# Clean build artifacts
+cargo clean
+
+# Check compile without building
+cargo check
 ```
 
-## 🎭 Features in Detail
+### Project Structure (Bevy ECS)
+- **Components**: `ChessPiece`, `BoardSquare`, `MenuButton`, `Selectable`
+- **Resources**: `ChessGameState`, `CameraState`, `MenuSelection`, `AIDifficulty`
+- **States**: `MainMenu`, `ColorSelect`, `DifficultySelect`, `PlayerTurn`, `AIThinking`, `Checkmate`
+- **Systems**: Event-driven with state-dependent system sets
 
-### Medieval Piece Designs
-Each piece is crafted with authentic medieval characteristics:
-- **Kings**: Crown with royal spikes
-- **Queens**: Elegant tall cylinder
-- **Rooks**: Castle towers with battlements and arrow slits
-- **Bishops**: Pointed mitre with decorative cross
-- **Knights**: Detailed horse head with armor
-- **Pawns**: Centurion soldiers with helmets
+## 🎭 Technical Highlights
 
-### Battle Sequences
-Epic cinematic moments during gameplay featuring:
-- Particle effects and visual flair
-- Medieval narrative descriptions
-- Orchestral music cues (text-based)
-- Chronicle system for endgame recap
+### Chess Engine Features
+- **8x8 Board Representation** with piece tracking
+- **Bitflag Move System** for captures, castling, en passant, promotion
+- **Legal Move Generation** with king safety checks
+- **Castling Rights Management** (kingside/queenside per player)
+- **En Passant Detection** with target square tracking
+- **Check & Checkmate Detection**
+
+### Rendering Pipeline
+- **PBR Materials**: Metallic pieces (0.9) with varying roughness
+- **Directional Lighting**: Moonlight from above at 45° angle
+- **Point Lights**: Flickering torchlight for atmosphere (4 corners)
+- **Camera**: Perspective projection with orbit controls
+- **Mesh Generation**: Procedural piece meshes with distinctive knight shape
 
 ## 🐛 Troubleshooting
 
-**Issue**: Window doesn't open
-- Ensure OpenGL 3.3+ is supported: `glxinfo | grep "OpenGL version"`
-- Check GLFW installation: `brew list glfw`
+**Issue**: Cargo build fails
+- Update Rust: `rustup update`
+- Clean and rebuild: `cargo clean && cargo build`
 
-**Issue**: Pieces not selecting correctly
-- The coordinate system uses logic rank 0 at bottom (White side)
-- Click directly on visible pieces in bottom 2 rows for White
+**Issue**: Menu buttons not responding
+- Ensure you're clicking on the button text/background
+- Selected buttons change color - click again to proceed
 
-**Issue**: Build fails
-- Verify CMake version: `cmake --version` (need 3.15+)
-- Check compiler: `clang++ --version` (need C++20 support)
+**Issue**: Camera not rotating
+- Hold **RIGHT mouse button** (not left) while dragging
+- Camera only rotates during gameplay, not in menus
+
+**Issue**: Graphics artifacts or crashes
+- Update graphics drivers
+- Check GPU supports Vulkan/Metal/DX12
+- Try reducing window size in main.rs
 
 ## 📄 License
 
