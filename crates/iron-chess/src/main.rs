@@ -403,9 +403,9 @@ fn spawn_chess_pieces(
 
                 let world_pos = board_to_world_position(&pos);
                 
-                // Knights get MUCH larger scale for maximum visibility
+                // Knights get moderately larger scale for visibility (but not too big)
                 let scale = if piece.piece_type == core_logic::PieceType::Knight {
-                    Vec3::splat(0.7)  // 75% larger than other pieces
+                    Vec3::splat(0.5)  // 25% larger than other pieces
                 } else {
                     Vec3::splat(0.4)
                 };
@@ -709,33 +709,41 @@ fn create_piece_mesh(
             meshes.add(mesh)
         }
         core_logic::PieceType::Bishop => {
-            // Bishop: Cylinder body with tall pointed cone top (mitre)
+            // Bishop: Wide base, narrow body, distinctive ball on top (mitre)
             let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
             let mut all_vertices = Vec::new();
             let mut all_normals = Vec::new();
             let mut all_indices = Vec::new();
             
-            // Base cylinder
-            let (mut verts, mut norms, indices) = create_cylinder_vertices(0.35, 0.25, 16);
+            // Wide base pedestal to distinguish from pawn
+            let (mut verts, mut norms, indices) = create_cylinder_vertices(0.42, 0.2, 16);
             all_vertices.append(&mut verts);
             all_normals.append(&mut norms);
             all_indices.extend(indices);
             
-            // Body cylinder (tall and thin)
+            // Narrow waist
+            let waist_offset = all_vertices.len() as u32;
+            let (mut verts, mut norms, indices) = create_cylinder_vertices(0.22, 0.35, 12);
+            for v in &mut verts { v[1] += 0.2; }
+            all_vertices.append(&mut verts);
+            all_normals.append(&mut norms);
+            all_indices.extend(indices.iter().map(|i| i + waist_offset));
+            
+            // Body cylinder (medium thickness)
             let body_offset = all_vertices.len() as u32;
-            let (mut verts, mut norms, indices) = create_cylinder_vertices(0.28, 1.1, 16);
-            for v in &mut verts { v[1] += 0.25; }
+            let (mut verts, mut norms, indices) = create_cylinder_vertices(0.30, 0.8, 14);
+            for v in &mut verts { v[1] += 0.55; }
             all_vertices.append(&mut verts);
             all_normals.append(&mut norms);
             all_indices.extend(indices.iter().map(|i| i + body_offset));
             
-            // Small sphere at neck
-            let neck_offset = all_vertices.len() as u32;
-            let (mut verts, mut norms, indices) = create_sphere_vertices(0.15, 10, 6);
-            for v in &mut verts { v[1] += 1.35; }
+            // Distinctive large ball/sphere on top (mitre)
+            let ball_offset = all_vertices.len() as u32;
+            let (mut verts, mut norms, indices) = create_sphere_vertices(0.25, 12, 8);
+            for v in &mut verts { v[1] += 1.5; }
             all_vertices.append(&mut verts);
             all_normals.append(&mut norms);
-            all_indices.extend(indices.iter().map(|i| i + neck_offset));
+            all_indices.extend(indices.iter().map(|i| i + ball_offset));
             
             // Use built-in cone for pointed mitre top
             let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; all_vertices.len()];
@@ -916,16 +924,67 @@ fn handle_mouse_click(
                 if game_state.game.make_move(chess_move).is_ok() {
                     info!("✅ Move executed: {} -> {}", selected_pos.to_algebraic(), target_pos.to_algebraic());
                     
-                    // Update the piece position in the ECS
-                    for (entity, piece, _) in pieces_query.iter() {
-                        if piece.position == selected_pos {
-                            commands.entity(entity).insert(PieceAnimation {
-                                from: board_to_world_position(&selected_pos),
-                                to: board_to_world_position(&target_pos),
-                                progress: 0.0,
-                                duration: 0.3,
-                            });
-                            break;
+                    // Handle castling - move both king and rook
+                    if chess_move.is_castling() {
+                        info!("🏰 Castling move!");
+                        // Move the king
+                        for (entity, piece, _) in pieces_query.iter() {
+                            if piece.position == selected_pos {
+                                commands.entity(entity).insert(PieceAnimation {
+                                    from: board_to_world_position(&selected_pos),
+                                    to: board_to_world_position(&target_pos),
+                                    progress: 0.0,
+                                    duration: 0.3,
+                                });
+                                break;
+                            }
+                        }
+                        
+                        // Move the rook
+                        let rank = selected_pos.rank;
+                        if chess_move.flags.contains(core_logic::MoveFlags::CASTLING_KINGSIDE) {
+                            // Kingside: rook moves from h-file (7) to f-file (5)
+                            let rook_from = core_logic::Position::new(7, rank);
+                            let rook_to = core_logic::Position::new(5, rank);
+                            for (entity, piece, _) in pieces_query.iter() {
+                                if piece.position == rook_from {
+                                    commands.entity(entity).insert(PieceAnimation {
+                                        from: board_to_world_position(&rook_from),
+                                        to: board_to_world_position(&rook_to),
+                                        progress: 0.0,
+                                        duration: 0.3,
+                                    });
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Queenside: rook moves from a-file (0) to d-file (3)
+                            let rook_from = core_logic::Position::new(0, rank);
+                            let rook_to = core_logic::Position::new(3, rank);
+                            for (entity, piece, _) in pieces_query.iter() {
+                                if piece.position == rook_from {
+                                    commands.entity(entity).insert(PieceAnimation {
+                                        from: board_to_world_position(&rook_from),
+                                        to: board_to_world_position(&rook_to),
+                                        progress: 0.0,
+                                        duration: 0.3,
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        // Normal move - just update the piece position
+                        for (entity, piece, _) in pieces_query.iter() {
+                            if piece.position == selected_pos {
+                                commands.entity(entity).insert(PieceAnimation {
+                                    from: board_to_world_position(&selected_pos),
+                                    to: board_to_world_position(&target_pos),
+                                    progress: 0.0,
+                                    duration: 0.3,
+                                });
+                                break;
+                            }
                         }
                     }
                 } else {
@@ -1752,21 +1811,21 @@ fn camera_controls(
         motion_events.clear();
     }
     
-    // Zoom with mouse wheel or W/S
+    // Zoom with mouse wheel or W/S - only changes distance, not angle
     for event in scroll_events.read() {
         camera_state.distance -= event.y * 0.5;
-        camera_state.distance = camera_state.distance.clamp(5.0, 25.0);
+        camera_state.distance = camera_state.distance.clamp(3.0, 30.0);  // Extended range for close-up views
         updated = true;
     }
     
     if keyboard.pressed(KeyCode::ArrowUp) || keyboard.pressed(KeyCode::KeyW) {
-        camera_state.distance -= 0.1;
-        camera_state.distance = camera_state.distance.clamp(5.0, 25.0);
+        camera_state.distance -= 0.15;
+        camera_state.distance = camera_state.distance.clamp(3.0, 30.0);
         updated = true;
     }
     if keyboard.pressed(KeyCode::ArrowDown) || keyboard.pressed(KeyCode::KeyS) {
-        camera_state.distance += 0.1;
-        camera_state.distance = camera_state.distance.clamp(5.0, 25.0);
+        camera_state.distance += 0.15;
+        camera_state.distance = camera_state.distance.clamp(3.0, 30.0);
         updated = true;
     }
     
