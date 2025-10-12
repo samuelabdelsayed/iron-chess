@@ -445,16 +445,116 @@ fn create_piece_mesh(
     
     match piece_type {
         core_logic::PieceType::King => {
-            // King: Tall regal figure with large crown
-            // Stacked cylinders for body and crown
-            meshes.add(Capsule3d::new(0.35, 1.9))
+            // King: Tall regal figure with distinctive cross crown
+            let mut mesh = Mesh::new(
+                PrimitiveTopology::TriangleList,
+                RenderAssetUsages::default(),
+            );
+            
+            #[rustfmt::skip]
+            let vertices: Vec<[f32; 3]> = vec![
+                // Wide base (pedestal)
+                [-0.5, 0.0, -0.5], [0.5, 0.0, -0.5], [0.5, 0.0, 0.5], [-0.5, 0.0, 0.5],
+                [-0.45, 0.2, -0.45], [0.45, 0.2, -0.45], [0.45, 0.2, 0.45], [-0.45, 0.2, 0.45],
+                // Main body (tapered)
+                [-0.35, 0.2, -0.35], [0.35, 0.2, -0.35], [0.35, 0.2, 0.35], [-0.35, 0.2, 0.35],
+                [-0.3, 1.5, -0.3], [0.3, 1.5, -0.3], [0.3, 1.5, 0.3], [-0.3, 1.5, 0.3],
+                // Crown base (wider)
+                [-0.35, 1.5, -0.35], [0.35, 1.5, -0.35], [0.35, 1.5, 0.35], [-0.35, 1.5, 0.35],
+                [-0.35, 1.7, -0.35], [0.35, 1.7, -0.35], [0.35, 1.7, 0.35], [-0.35, 1.7, 0.35],
+                // Cross vertical
+                [-0.08, 1.7, -0.08], [0.08, 1.7, -0.08], [0.08, 1.7, 0.08], [-0.08, 1.7, 0.08],
+                [-0.08, 2.2, -0.08], [0.08, 2.2, -0.08], [0.08, 2.2, 0.08], [-0.08, 2.2, 0.08],
+                // Cross horizontal
+                [-0.25, 1.95, -0.08], [0.25, 1.95, -0.08], [0.25, 1.95, 0.08], [-0.25, 1.95, 0.08],
+                [-0.25, 2.05, -0.08], [0.25, 2.05, -0.08], [0.25, 2.05, 0.08], [-0.25, 2.05, 0.08],
+            ];
+            
+            #[rustfmt::skip]
+            let indices: Vec<u32> = vec![
+                // Base pedestal
+                0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7,
+                4,5,6, 4,6,7,
+                // Lower body
+                8,9,13, 8,13,12, 9,10,14, 9,14,13, 10,11,15, 10,15,14, 11,8,12, 11,12,15,
+                12,13,14, 12,14,15,
+                // Crown base
+                16,17,21, 16,21,20, 17,18,22, 17,22,21, 18,19,23, 18,23,22, 19,16,20, 19,20,23,
+                20,21,22, 20,22,23,
+                // Cross vertical
+                24,25,29, 24,29,28, 25,26,30, 25,30,29, 26,27,31, 26,31,30, 27,24,28, 27,28,31,
+                28,29,30, 28,30,31,
+                // Cross horizontal
+                32,33,37, 32,37,36, 33,34,38, 33,38,37, 34,35,39, 34,39,38, 35,32,36, 35,36,39,
+                36,37,38, 36,38,39,
+            ];
+            
+            let normals: Vec<[f32; 3]> = vec![[0.0, 1.0, 0.0]; vertices.len()];
+            let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; vertices.len()];
+            
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+            mesh.insert_indices(Indices::U32(indices));
+            
+            meshes.add(mesh)
         }
         core_logic::PieceType::Queen => {
-            // Queen: Elegant cone crown with wide base
-            meshes.add(Cone {
-                radius: 0.48,
-                height: 1.75,
-            })
+            // Queen: Elegant figure with spherical crown and decorative points
+            let mut mesh = Mesh::new(
+                PrimitiveTopology::TriangleList,
+                RenderAssetUsages::default(),
+            );
+            
+            #[rustfmt::skip]
+            let vertices: Vec<[f32; 3]> = vec![
+                // Wide base (pedestal)
+                [-0.48, 0.0, -0.48], [0.48, 0.0, -0.48], [0.48, 0.0, 0.48], [-0.48, 0.0, 0.48],
+                [-0.43, 0.2, -0.43], [0.43, 0.2, -0.43], [0.43, 0.2, 0.45], [-0.43, 0.2, 0.43],
+                // Main body (tapered elegantly)
+                [-0.33, 0.2, -0.33], [0.33, 0.2, -0.33], [0.33, 0.2, 0.33], [-0.33, 0.2, 0.33],
+                [-0.28, 1.4, -0.28], [0.28, 1.4, -0.28], [0.28, 1.4, 0.28], [-0.28, 1.4, 0.28],
+                // Neck (narrower)
+                [-0.2, 1.4, -0.2], [0.2, 1.4, -0.2], [0.2, 1.4, 0.2], [-0.2, 1.4, 0.2],
+                [-0.2, 1.6, -0.2], [0.2, 1.6, -0.2], [0.2, 1.6, 0.2], [-0.2, 1.6, 0.2],
+                // Crown sphere (approximated with octagon)
+                [-0.25, 1.75, -0.25], [0.25, 1.75, -0.25], [0.25, 1.75, 0.25], [-0.25, 1.75, 0.25],
+                [-0.2, 1.9, -0.2], [0.2, 1.9, -0.2], [0.2, 1.9, 0.2], [-0.2, 1.9, 0.2],
+                // Crown points (5 points around)
+                [0.0, 2.1, 0.0],    // Center top
+                [0.0, 1.95, -0.3],  // North point
+                [0.25, 1.95, 0.0],  // East point  
+                [0.0, 1.95, 0.3],   // South point
+                [-0.25, 1.95, 0.0], // West point
+            ];
+            
+            #[rustfmt::skip]
+            let indices: Vec<u32> = vec![
+                // Base pedestal
+                0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7,
+                4,5,6, 4,6,7,
+                // Main body
+                8,9,13, 8,13,12, 9,10,14, 9,14,13, 10,11,15, 10,15,14, 11,8,12, 11,12,15,
+                12,13,14, 12,14,15,
+                // Neck
+                16,17,21, 16,21,20, 17,18,22, 17,22,21, 18,19,23, 18,23,22, 19,16,20, 19,20,23,
+                20,21,22, 20,22,23,
+                // Crown sphere base
+                24,25,29, 24,29,28, 25,26,30, 25,30,29, 26,27,31, 26,31,30, 27,24,28, 27,28,31,
+                28,29,30, 28,30,31,
+                // Crown points
+                32,33,34, 32,34,35, 32,35,36, 32,36,37, 32,37,33,
+            ];
+            
+            let normals: Vec<[f32; 3]> = vec![[0.0, 1.0, 0.0]; vertices.len()];
+            let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; vertices.len()];
+            
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+            mesh.insert_indices(Indices::U32(indices));
+            
+            meshes.add(mesh)
         }
         core_logic::PieceType::Rook => {
             // Rook: Siege tower with battlements (crenellations)
@@ -508,55 +608,80 @@ fn create_piece_mesh(
             meshes.add(Capsule3d::new(0.3, 1.5))
         }
         core_logic::PieceType::Knight => {
-            // Knight: Distinctive L-shaped chess knight (horse head)
-            // ENHANCED: Larger, more visible with exaggerated features
+            // Knight: Realistic horse head with curved neck, inspired by traditional chess knights
             let mut mesh = Mesh::new(
                 PrimitiveTopology::TriangleList,
                 RenderAssetUsages::default(),
             );
             
-            // L-shaped knight: LARGER vertical base + prominent forward-leaning head
-            // Scaled up by ~60% for better visibility
             #[rustfmt::skip]
             let vertices: Vec<[f32; 3]> = vec![
-                // Base/body (wider, taller vertical cylinder base)
-                [-0.4, 0.0, -0.4], [0.4, 0.0, -0.4],
-                [0.4, 0.0, 0.4], [-0.4, 0.0, 0.4],
-                [-0.4, 1.2, -0.4], [0.4, 1.2, -0.4],
-                [0.4, 1.2, 0.4], [-0.4, 1.2, 0.4],
+                // Base pedestal (round)
+                [-0.4, 0.0, -0.4], [0.4, 0.0, -0.4], [0.4, 0.0, 0.4], [-0.4, 0.0, 0.4],
+                [-0.35, 0.3, -0.35], [0.35, 0.3, -0.35], [0.35, 0.3, 0.35], [-0.35, 0.3, 0.35],
                 
-                // Neck bend (more pronounced forward lean)
-                [-0.35, 1.2, 0.0], [0.35, 1.2, 0.0],
-                [-0.35, 1.5, 0.6], [0.35, 1.5, 0.6],
+                // Lower neck (vertical, thick)
+                [-0.25, 0.3, -0.15], [0.25, 0.3, -0.15], [0.25, 0.3, 0.15], [-0.25, 0.3, 0.15],
+                [-0.22, 0.9, -0.1], [0.22, 0.9, -0.1], [0.22, 0.9, 0.1], [-0.22, 0.9, 0.1],
                 
-                // Horse head (MUCH larger forward projection)
-                [-0.35, 1.5, 0.6], [0.35, 1.5, 0.6],
-                [-0.25, 1.9, 1.0], [0.25, 1.9, 1.0],  // wider head
-                [-0.25, 2.1, 1.1], [0.25, 2.1, 1.1],  // taller ears/top
+                // Mid neck (curved forward)
+                [-0.2, 0.9, 0.0], [0.2, 0.9, 0.0], [0.2, 0.9, 0.25], [-0.2, 0.9, 0.25],
+                [-0.18, 1.3, 0.4], [0.18, 1.3, 0.4], [0.18, 1.3, 0.6], [-0.18, 1.3, 0.6],
                 
-                // Prominent snout (extended further forward)
-                [-0.15, 1.8, 1.4], [0.15, 1.8, 1.4],  // more exaggerated
+                // Upper neck (more forward curve)
+                [-0.18, 1.3, 0.5], [0.18, 1.3, 0.5], [0.18, 1.3, 0.7], [-0.18, 1.3, 0.7],
+                [-0.2, 1.6, 0.75], [0.2, 1.6, 0.75], [0.2, 1.6, 0.95], [-0.2, 1.6, 0.95],
+                
+                // Head back (where neck meets head)
+                [-0.22, 1.6, 0.85], [0.22, 1.6, 0.85], [0.22, 1.6, 1.05], [-0.22, 1.6, 1.05],
+                [-0.22, 1.85, 0.95], [0.22, 1.85, 0.95], [0.22, 1.85, 1.1], [-0.22, 1.85, 1.1],
+                
+                // Head top (with ears)
+                [-0.18, 1.85, 1.0], [0.18, 1.85, 1.0], [0.18, 1.85, 1.15], [-0.18, 1.85, 1.15],
+                [-0.12, 2.05, 1.05], [0.12, 2.05, 1.05], [0.12, 2.05, 1.15], [-0.12, 2.05, 1.15],
+                
+                // Face/muzzle (front of head)
+                [-0.18, 1.7, 1.1], [0.18, 1.7, 1.1], [0.18, 1.7, 1.25], [-0.18, 1.7, 1.25],
+                [-0.15, 1.5, 1.2], [0.15, 1.5, 1.2], [0.15, 1.5, 1.35], [-0.15, 1.5, 1.35],
+                
+                // Snout (nose area)
+                [-0.12, 1.5, 1.3], [0.12, 1.5, 1.3], [0.12, 1.5, 1.42], [-0.12, 1.5, 1.42],
+                [-0.1, 1.35, 1.35], [0.1, 1.35, 1.35], [0.1, 1.35, 1.45], [-0.1, 1.35, 1.45],
+                
+                // Mane ridge (decorative top)
+                [-0.05, 1.4, 0.6], [0.05, 1.4, 0.6],
+                [-0.05, 1.9, 0.85], [0.05, 1.9, 0.85],
+                [-0.05, 2.05, 1.0], [0.05, 2.05, 1.0],
             ];
             
             #[rustfmt::skip]
             let indices: Vec<u32> = vec![
-                // Base body box (larger)
-                0, 1, 5, 0, 5, 4,  // front
-                1, 2, 6, 1, 6, 5,  // right
-                2, 3, 7, 2, 7, 6,  // back
-                3, 0, 4, 3, 4, 7,  // left
-                4, 5, 6, 4, 6, 7,  // top
-                
-                // Neck connection (wider)
-                8, 9, 11, 8, 11, 10,
-                
-                // Head body (larger)
-                12, 13, 15, 12, 15, 14,
-                14, 15, 17, 14, 17, 16,
-                
-                // Snout (more prominent)
-                14, 16, 18, 15, 17, 19,
-                16, 17, 19, 16, 19, 18,
+                // Base pedestal
+                0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7,
+                4,5,6, 4,6,7,
+                // Lower neck
+                8,9,13, 8,13,12, 9,10,14, 9,14,13, 10,11,15, 10,15,14, 11,8,12, 11,12,15,
+                12,13,14, 12,14,15,
+                // Mid neck
+                16,17,21, 16,21,20, 17,18,22, 17,22,21, 18,19,23, 18,23,22, 19,16,20, 19,20,23,
+                20,21,22, 20,22,23,
+                // Upper neck
+                24,25,29, 24,29,28, 25,26,30, 25,30,29, 26,27,31, 26,31,30, 27,24,28, 27,28,31,
+                28,29,30, 28,30,31,
+                // Head back
+                32,33,37, 32,37,36, 33,34,38, 33,38,37, 34,35,39, 34,39,38, 35,32,36, 35,36,39,
+                36,37,38, 36,38,39,
+                // Head top
+                40,41,45, 40,45,44, 41,42,46, 41,46,45, 42,43,47, 42,47,46, 43,40,44, 43,44,47,
+                44,45,46, 44,46,47,
+                // Face
+                48,49,53, 48,53,52, 49,50,54, 49,54,53, 50,51,55, 50,55,54, 51,48,52, 51,52,55,
+                52,53,54, 52,54,55,
+                // Snout
+                56,57,61, 56,61,60, 57,58,62, 57,62,61, 58,59,63, 58,63,62, 59,56,60, 59,60,63,
+                60,61,62, 60,62,63,
+                // Mane decorative triangles
+                64,65,66, 65,66,67, 66,67,68, 67,68,69,
             ];
             
             let normals: Vec<[f32; 3]> = vec![[0.0, 1.0, 0.0]; vertices.len()];
