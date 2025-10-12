@@ -33,6 +33,10 @@ fn main() {
         .insert_resource(MenuSelection::default())
         .insert_resource(PiecesSpawned::default())
         .insert_resource(SceneSpawned::default())
+        .insert_resource(AIMoveTimer {
+            timer: Timer::from_seconds(1.5, TimerMode::Once),
+            pending_move: None,
+        })
         // Startup systems
         .add_systems(Startup, (
             setup_camera,
@@ -46,6 +50,11 @@ fn main() {
             setup_scene,
             // spawn pieces only if not already spawned
             spawn_chess_pieces,
+            // Update camera to player's perspective
+            update_camera_for_player,
+        ))
+        .add_systems(OnEnter(AppState::AIThinking), (
+            update_camera_for_player,
         ))
         // Update systems based on state
         .add_systems(Update, (
@@ -57,6 +66,7 @@ fn main() {
         .add_systems(Update, camera_controls.run_if(in_state(AppState::PlayerTurn)))
         .add_systems(Update, (
             ai_thinking_system,
+            ai_move_delay_system,
         ).run_if(in_state(AppState::AIThinking)))
         .add_systems(Update, (
             animate_battle_sequence,
@@ -120,6 +130,13 @@ impl BattleCounter {
 /// AI difficulty level (1-10)
 #[derive(Resource)]
 struct AIDifficulty(u8);
+
+/// Resource to add delay before AI moves for visibility
+#[derive(Resource)]
+struct AIMoveTimer {
+    timer: Timer,
+    pending_move: Option<ChessMove>,
+}
 
 /// Camera control state
 #[derive(Resource)]
@@ -316,14 +333,14 @@ fn spawn_chess_pieces(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     game_state: Res<ChessGameState>,
-    existing_pieces: Query<Entity, With<ChessPiece>>,
+    pieces_spawned: Res<PiecesSpawned>,
 ) {
-    info!("♟️ Spawning medieval chess pieces");
-
-    // Remove any existing pieces (ensure idempotency)
-    for entity in existing_pieces.iter() {
-        commands.entity(entity).despawn_recursive();
+    // Only spawn once
+    if pieces_spawned.spawned {
+        return;
     }
+    
+    info!("♟️ Spawning medieval chess pieces");
 
     // Create a parent entity to hold all piece entities so they can be managed together
     let parent = commands.spawn((
@@ -359,13 +376,20 @@ fn spawn_chess_pieces(
                 };
 
                 let world_pos = board_to_world_position(&pos);
+                
+                // Knights get extra scale for visibility
+                let scale = if piece.piece_type == core_logic::PieceType::Knight {
+                    Vec3::splat(0.5)  // 25% larger than other pieces
+                } else {
+                    Vec3::splat(0.4)
+                };
 
                 commands.spawn((
                     PbrBundle {
                         mesh,
                         material,
                         transform: Transform::from_translation(world_pos)
-                            .with_scale(Vec3::splat(0.4)),
+                            .with_scale(scale),
                         ..default()
                     },
                     ChessPiece {
@@ -459,52 +483,52 @@ fn create_piece_mesh(
         }
         core_logic::PieceType::Knight => {
             // Knight: Distinctive L-shaped chess knight (horse head)
-            // Creates a recognizable horse head profile with bent neck
-            // TODO: Replace with detailed .glb model of armored warhorse
+            // ENHANCED: Larger, more visible with exaggerated features
             let mut mesh = Mesh::new(
                 PrimitiveTopology::TriangleList,
                 RenderAssetUsages::default(),
             );
             
-            // L-shaped knight: vertical base + forward-leaning head
+            // L-shaped knight: LARGER vertical base + prominent forward-leaning head
+            // Scaled up by ~60% for better visibility
             #[rustfmt::skip]
             let vertices: Vec<[f32; 3]> = vec![
-                // Base/body (vertical cylinder base)
-                [-0.25, 0.0, -0.25], [0.25, 0.0, -0.25],
-                [0.25, 0.0, 0.25], [-0.25, 0.0, 0.25],
-                [-0.25, 0.9, -0.25], [0.25, 0.9, -0.25],
-                [0.25, 0.9, 0.25], [-0.25, 0.9, 0.25],
+                // Base/body (wider, taller vertical cylinder base)
+                [-0.4, 0.0, -0.4], [0.4, 0.0, -0.4],
+                [0.4, 0.0, 0.4], [-0.4, 0.0, 0.4],
+                [-0.4, 1.2, -0.4], [0.4, 1.2, -0.4],
+                [0.4, 1.2, 0.4], [-0.4, 1.2, 0.4],
                 
-                // Neck bend (forward lean)
-                [-0.2, 0.9, 0.0], [0.2, 0.9, 0.0],
-                [-0.2, 1.1, 0.4], [0.2, 1.1, 0.4],
+                // Neck bend (more pronounced forward lean)
+                [-0.35, 1.2, 0.0], [0.35, 1.2, 0.0],
+                [-0.35, 1.5, 0.6], [0.35, 1.5, 0.6],
                 
-                // Horse head (forward projection)
-                [-0.2, 1.1, 0.4], [0.2, 1.1, 0.4],
-                [-0.15, 1.4, 0.6], [0.15, 1.4, 0.6],
-                [-0.15, 1.5, 0.7], [0.15, 1.5, 0.7], // ears/top of head
+                // Horse head (MUCH larger forward projection)
+                [-0.35, 1.5, 0.6], [0.35, 1.5, 0.6],
+                [-0.25, 1.9, 1.0], [0.25, 1.9, 1.0],  // wider head
+                [-0.25, 2.1, 1.1], [0.25, 2.1, 1.1],  // taller ears/top
                 
-                // Snout
-                [-0.1, 1.3, 0.9], [0.1, 1.3, 0.9],
+                // Prominent snout (extended further forward)
+                [-0.15, 1.8, 1.4], [0.15, 1.8, 1.4],  // more exaggerated
             ];
             
             #[rustfmt::skip]
             let indices: Vec<u32> = vec![
-                // Base body box
+                // Base body box (larger)
                 0, 1, 5, 0, 5, 4,  // front
                 1, 2, 6, 1, 6, 5,  // right
                 2, 3, 7, 2, 7, 6,  // back
                 3, 0, 4, 3, 4, 7,  // left
                 4, 5, 6, 4, 6, 7,  // top
                 
-                // Neck connection
+                // Neck connection (wider)
                 8, 9, 11, 8, 11, 10,
                 
-                // Head body
+                // Head body (larger)
                 12, 13, 15, 12, 15, 14,
                 14, 15, 17, 14, 17, 16,
                 
-                // Snout
+                // Snout (more prominent)
                 14, 16, 18, 15, 17, 19,
                 16, 17, 19, 16, 19, 18,
             ];
@@ -1020,12 +1044,17 @@ fn handle_menu_interaction(
                             info!("▶️ Starting game as {:?}", player_color);
                             game_state.player_color = player_color;
                             
-                            // Set camera angle based on color
+                            // Set camera to view from player's side
+                            // White at bottom (south), Black at top (north)
                             if player_color == ChessColor::White {
-                                camera_state.rotation_angle = std::f32::consts::PI;
+                                // White pieces at bottom, camera behind them looking north toward black
+                                camera_state.rotation_angle = std::f32::consts::PI;  // Camera at south looking north
+                                camera_state.distance = 15.0;  // Pull back for better view
                                 next_state.set(AppState::PlayerTurn);
                             } else {
-                                camera_state.rotation_angle = 0.0;
+                                // Black pieces at top, camera behind them looking south toward white
+                                camera_state.rotation_angle = 0.0;  // Camera at north looking south
+                                camera_state.distance = 15.0;  // Pull back for better view
                                 next_state.set(AppState::AIThinking);
                             }
                         } else {
@@ -1088,14 +1117,17 @@ fn cleanup_menu(
     menu_selection.difficulty = None;
 }
 
-/// AI thinking system (runs asynchronously)
+/// AI thinking system with difficulty-based move selection
 fn ai_thinking_system(
-    mut game_state: ResMut<ChessGameState>,
+    game_state: Res<ChessGameState>,
     ai_difficulty: Res<AIDifficulty>,
-    mut next_state: ResMut<NextState<AppState>>,
-    mut commands: Commands,
-    mut pieces_query: Query<(Entity, &mut ChessPiece, &Transform)>,
+    mut ai_timer: ResMut<AIMoveTimer>,
 ) {
+    // Only calculate move if we don't have a pending one
+    if ai_timer.pending_move.is_some() {
+        return;
+    }
+    
     info!("🤖 AI is thinking... (Difficulty: {})", ai_difficulty.0);
     
     // Get AI color (opposite of player)
@@ -1104,7 +1136,6 @@ fn ai_thinking_system(
     // Verify it's AI's turn
     if game_state.game.current_turn != ai_color {
         warn!("⚠️ Not AI's turn, skipping");
-        next_state.set(AppState::PlayerTurn);
         return;
     }
     
@@ -1113,50 +1144,145 @@ fn ai_thinking_system(
     
     if legal_moves.is_empty() {
         info!("🏁 AI has no legal moves - game over");
-        next_state.set(AppState::PlayerTurn);
         return;
     }
     
-    // Simple AI: pick random move (TODO: implement minimax based on difficulty)
-    use rand::seq::SliceRandom;
-    let mut rng = rand::thread_rng();
-    let ai_move = legal_moves.choose(&mut rng).unwrap().clone();
+    // Select move based on difficulty level
+    let ai_move = select_ai_move(&legal_moves, &game_state.game, ai_difficulty.0);
     
-    info!("🤖 AI moves: {} -> {}", ai_move.from.to_algebraic(), ai_move.to.to_algebraic());
+    info!("🤖 AI selected: {} -> {}", ai_move.from.to_algebraic(), ai_move.to.to_algebraic());
     
-    // Handle captures
-    if ai_move.is_capture() {
-        for (entity, piece, _) in pieces_query.iter() {
-            if piece.position == ai_move.to {
-                info!("💥 AI capturing piece at {}", ai_move.to.to_algebraic());
-                commands.entity(entity).despawn();
-                break;
+    // Store the move and reset timer
+    ai_timer.pending_move = Some(ai_move);
+    ai_timer.timer.reset();
+}
+
+/// Delayed AI move execution for visibility
+fn ai_move_delay_system(
+    mut game_state: ResMut<ChessGameState>,
+    mut ai_timer: ResMut<AIMoveTimer>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut commands: Commands,
+    mut pieces_query: Query<(Entity, &mut ChessPiece, &Transform)>,
+    time: Res<Time>,
+) {
+    // Wait for the pending move
+    if let Some(ai_move) = ai_timer.pending_move {
+        ai_timer.timer.tick(time.delta());
+        
+        if ai_timer.timer.finished() {
+            info!("🤖 Executing AI move after delay");
+            
+            // Handle captures
+            if ai_move.is_capture() {
+                for (entity, piece, _) in pieces_query.iter() {
+                    if piece.position == ai_move.to {
+                        info!("💥 AI capturing piece at {}", ai_move.to.to_algebraic());
+                        commands.entity(entity).despawn();
+                        break;
+                    }
+                }
+            }
+            
+            // Execute the move
+            if game_state.game.make_move(ai_move).is_ok() {
+                // Animate the AI piece and update its position
+                for (entity, mut piece, _) in pieces_query.iter_mut() {
+                    if piece.position == ai_move.from {
+                        commands.entity(entity).insert(PieceAnimation {
+                            from: board_to_world_position(&ai_move.from),
+                            to: board_to_world_position(&ai_move.to),
+                            progress: 0.0,
+                            duration: 0.8,  // Slower animation for visibility
+                        });
+                        // Update the piece's position immediately
+                        piece.position = ai_move.to;
+                        break;
+                    }
+                }
+                
+                // Clear pending move and return to player turn
+                ai_timer.pending_move = None;
+                next_state.set(AppState::PlayerTurn);
+            } else {
+                error!("❌ AI move failed");
+                ai_timer.pending_move = None;
+                next_state.set(AppState::PlayerTurn);
             }
         }
     }
+}
+
+/// Select AI move based on difficulty (1-10)
+fn select_ai_move(legal_moves: &[ChessMove], game: &GameState, difficulty: u8) -> ChessMove {
+    use rand::seq::SliceRandom;
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
     
-    // Execute the move
-    if game_state.game.make_move(ai_move).is_ok() {
-        // Animate the AI piece and update its position
-        for (entity, mut piece, _) in pieces_query.iter_mut() {
-            if piece.position == ai_move.from {
-                commands.entity(entity).insert(PieceAnimation {
-                    from: board_to_world_position(&ai_move.from),
-                    to: board_to_world_position(&ai_move.to),
-                    progress: 0.0,
-                    duration: 0.5,
-                });
-                // Update the piece's position immediately
-                piece.position = ai_move.to;
-                break;
+    match difficulty {
+        1..=3 => {
+            // Beginner: Random moves
+            legal_moves.choose(&mut rng).unwrap().clone()
+        }
+        4..=6 => {
+            // Intermediate: Prefer captures and center control
+            let captures: Vec<_> = legal_moves.iter().filter(|m| m.is_capture()).collect();
+            
+            if !captures.is_empty() && rng.gen_bool(0.7) {
+                (*captures.choose(&mut rng).unwrap()).clone()
+            } else {
+                // Prefer center squares (e4, d4, e5, d5)
+                let center_moves: Vec<_> = legal_moves.iter()
+                    .filter(|m| {
+                        let (file, rank) = (m.to.file, m.to.rank);
+                        (file == 3 || file == 4) && (rank == 3 || rank == 4)
+                    })
+                    .collect();
+                
+                if !center_moves.is_empty() && rng.gen_bool(0.5) {
+                    (*center_moves.choose(&mut rng).unwrap()).clone()
+                } else {
+                    legal_moves.choose(&mut rng).unwrap().clone()
+                }
             }
         }
-        
-        // Return to player turn
-        next_state.set(AppState::PlayerTurn);
-    } else {
-        error!("❌ AI move failed");
-        next_state.set(AppState::PlayerTurn);
+        7..=10 => {
+            // Advanced: Prioritize captures, threats, and development
+            let mut scored_moves: Vec<(ChessMove, i32)> = legal_moves.iter()
+                .map(|m| {
+                    let mut score = 0;
+                    
+                    // Strongly prefer captures
+                    if m.is_capture() {
+                        score += 100;
+                    }
+                    
+                    // Value center control
+                    let (file, rank) = (m.to.file, m.to.rank);
+                    if (file == 3 || file == 4) && (rank == 3 || rank == 4) {
+                        score += 30;
+                    }
+                    
+                    // Prefer moving pieces forward (development)
+                    if game.current_turn == ChessColor::White && m.to.rank > m.from.rank {
+                        score += 10;
+                    } else if game.current_turn == ChessColor::Black && m.to.rank < m.from.rank {
+                        score += 10;
+                    }
+                    
+                    // Add some randomness to avoid predictability
+                    score += rng.gen_range(-5..=5);
+                    
+                    (m.clone(), score)
+                })
+                .collect();
+            
+            // Sort by score and pick from top moves
+            scored_moves.sort_by_key(|(_, score)| -score);
+            let top_n = (scored_moves.len() / 3).max(1);
+            scored_moves[..top_n].choose(&mut rng).unwrap().0.clone()
+        }
+        _ => legal_moves.choose(&mut rng).unwrap().clone(),
     }
 }
 
@@ -1265,6 +1391,26 @@ fn camera_controls(
             transform.translation = Vec3::new(x, height, z);
             transform.look_at(Vec3::ZERO, Vec3::Y);
         }
+    }
+}
+
+/// Update camera position when entering gameplay to match player perspective
+fn update_camera_for_player(
+    camera_state: Res<CameraState>,
+    mut camera_query: Query<&mut Transform, With<Camera3d>>,
+) {
+    if let Ok(mut transform) = camera_query.get_single_mut() {
+        let angle = camera_state.rotation_angle;
+        let distance = camera_state.distance;
+        let height = camera_state.height;
+        
+        let x = angle.sin() * distance;
+        let z = angle.cos() * distance;
+        
+        transform.translation = Vec3::new(x, height, z);
+        transform.look_at(Vec3::ZERO, Vec3::Y);
+        
+        info!("📷 Camera updated: angle={:.2}, distance={:.1}, height={:.1}", angle, distance, height);
     }
 }
 
