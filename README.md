@@ -173,4 +173,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-Built with modern C++ and OpenGL to deliver a rich 3D chess experience with medieval aesthetics and smooth gameplay.
+Built with Rust and Bevy to deliver a rich 3D chess experience with medieval aesthetics and smooth gameplay.
