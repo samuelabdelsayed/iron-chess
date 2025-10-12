@@ -1,0 +1,59 @@
+# Iron Chess - Pure C++ Chess Game
+
+# Build directories
+build/
+bin/
+obj/
+
+# IDE files
+.vscode/
+.vs/
+*.xcworkspace/
+*.sln
+*.vcxproj*
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Executables
+IronChess
+IronChess.exe
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.pdb
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Package managers
+vcpkg_installed/
+conan/
+.conan/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Asset cache
+assets/cache/
+*.cache
+
+# Documentation builds
+docs/html/
+docs/latex/

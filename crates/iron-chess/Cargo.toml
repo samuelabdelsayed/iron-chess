@@ -1,0 +1,17 @@
+[package]
+name = "iron-chess"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "iron-chess"
+path = "src/main.rs"
+
+[dependencies]
+bevy = { workspace = true }
+core-logic = { path = "../core-logic" }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+rand = { workspace = true }
