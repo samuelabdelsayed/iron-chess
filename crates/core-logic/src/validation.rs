@@ -48,25 +48,49 @@ impl<'a> MoveValidator<'a> {
             return Ok(false);
         }
 
-        // TODO: Check if move leaves king in check (requires board cloning)
+        // Check if move leaves king in check
+        // Clone the board and test the move
+        let mut test_board = self.board.clone();
+        test_board.apply_move(chess_move);
+        
+        // Find king position after the move
+        let king_pos = test_board.find_king(self.current_color);
+        if king_pos.is_none() {
+            // King was captured - this move is illegal
+            return Ok(false);
+        }
+        
+        // Check if king is under attack after the move
+        let king_pos = king_pos.unwrap();
+        if self.is_square_attacked_on_board(&test_board, king_pos, self.current_color) {
+            return Ok(false);
+        }
+
         Ok(true)
     }
 
     /// Generates all legal moves for the current player
     pub fn generate_all_legal_moves(&self) -> Vec<ChessMove> {
         let mut moves = Vec::new();
+        let mut piece_count = 0;
 
         for from_file in 0..8 {
             for from_rank in 0..8 {
                 let from = Position::new(from_file, from_rank);
                 if let Some(piece) = self.board.get_piece(&from) {
                     if piece.color == self.current_color {
-                        moves.extend(self.generate_piece_moves(&from, &piece));
+                        piece_count += 1;
+                        let piece_moves = self.generate_piece_moves(&from, &piece);
+                        if !piece_moves.is_empty() {
+                            eprintln!("  {:?} at {:?}: {} moves", piece.piece_type, from, piece_moves.len());
+                        }
+                        moves.extend(piece_moves);
                     }
                 }
             }
         }
 
+        eprintln!("📊 Generated {} legal moves from {} pieces for {:?}", moves.len(), piece_count, self.current_color);
         moves
     }
 
@@ -75,15 +99,15 @@ impl<'a> MoveValidator<'a> {
 
         // Special handling for king castling moves
         if piece.piece_type == PieceType::King {
-            // Add kingside castling
+            // Add kingside castling (King d->f)
             if self.board.can_castle_kingside(piece.color) {
-                let to = Position::new(6, from.rank);
+                let to = Position::new(5, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_KINGSIDE);
                 if self.is_legal_move(&castle_move).unwrap_or(false) {
                     moves.push(castle_move);
                 }
             }
-            // Add queenside castling
+            // Add queenside castling (King d->c)
             if self.board.can_castle_queenside(piece.color) {
                 let to = Position::new(2, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_QUEENSIDE);
@@ -222,14 +246,14 @@ impl<'a> MoveValidator<'a> {
             return true;
         }
 
-        // Castling
-        if file_diff == 2 && rank_diff == 0 {
-            // Kingside castling
-            if chess_move.to.file == 6 && self.board.can_castle_kingside(color) {
+        // Castling: King on d-file (3) can castle kingside to f (5) = 2 squares, or queenside to c (2) = 1 square
+        if rank_diff == 0 {
+            // Kingside castling (d->f, 2 squares)
+            if file_diff == 2 && chess_move.to.file == 5 && self.board.can_castle_kingside(color) {
                 return self.is_castling_legal(chess_move, true);
             }
-            // Queenside castling
-            if chess_move.to.file == 2 && self.board.can_castle_queenside(color) {
+            // Queenside castling (d->c, 1 square)
+            if file_diff == 1 && chess_move.to.file == 2 && self.board.can_castle_queenside(color) {
                 return self.is_castling_legal(chess_move, false);
             }
         }
@@ -266,29 +290,48 @@ impl<'a> MoveValidator<'a> {
         }
         
         if kingside {
-            // Check squares between king and rook are empty (f and g files = 5,6)
-            for file in 5..7 {
+            // Check that the rook is still at its starting position (h file = 7)
+            let rook_pos = Position::new(7, rank);
+            match self.board.get_piece(&rook_pos) {
+                Some(piece) if piece.piece_type == PieceType::Rook && piece.color == color => {},
+                _ => return false, // No rook found or wrong piece
+            }
+            
+            // King on d-file (3), castles to f-file (5)
+            // Check squares between king and rook are empty (e, f, g files = 4,5,6)
+            // Note: King starts at 3, moves to 5, so check 4,5,6 for empty
+            for file in 4..7 {
                 if self.board.get_piece(&Position::new(file, rank)).is_some() {
                     return false;
                 }
             }
             
-            // Check king doesn't move through or into check (files 4->5->6)
-            for file in 5..=6 {
+            // Check king doesn't move through or into check
+            // King moves from d(3) -> e(4) -> f(5), so check files 3,4,5
+            for file in 3..=5 {
                 let test_pos = Position::new(file, rank);
                 if self.is_square_attacked(test_pos, color) {
                     return false;
                 }
             }
         } else {
-            // Queenside: Check squares between king and rook are empty (b, c, d files = 1,2,3)
-            for file in 1..4 {
+            // Check that the rook is still at its starting position (a file = 0)
+            let rook_pos = Position::new(0, rank);
+            match self.board.get_piece(&rook_pos) {
+                Some(piece) if piece.piece_type == PieceType::Rook && piece.color == color => {},
+                _ => return false, // No rook found or wrong piece
+            }
+            
+            // King on d-file (3), castles to c-file (2)
+            // Queenside: Check squares between king and rook are empty (b, c files = 1,2)
+            for file in 1..3 {
                 if self.board.get_piece(&Position::new(file, rank)).is_some() {
                     return false;
                 }
             }
             
-            // Check king doesn't move through or into check (files 4->3->2)
+            // Check king doesn't move through or into check
+            // King moves from d(3) -> c(2), so check files 3,2
             for file in 2..=3 {
                 let test_pos = Position::new(file, rank);
                 if self.is_square_attacked(test_pos, color) {
@@ -335,6 +378,53 @@ impl<'a> MoveValidator<'a> {
                             PieceType::Bishop => self.is_legal_bishop_move(&test_move),
                             PieceType::Rook => self.is_legal_rook_move(&test_move),
                             PieceType::Queen => self.is_legal_queen_move(&test_move),
+                            PieceType::King => {
+                                let file_diff = (position.file as i8 - from.file as i8).abs();
+                                let rank_diff = (position.rank as i8 - from.rank as i8).abs();
+                                file_diff <= 1 && rank_diff <= 1
+                            }
+                        };
+                        
+                        if can_attack {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        false
+    }
+
+    /// Helper method to check if a square is attacked on a specific board state
+    fn is_square_attacked_on_board(&self, board: &ChessBoard, position: Position, defender_color: Color) -> bool {
+        let attacker_color = defender_color.opposite();
+        
+        // Check all opponent pieces to see if any attack this square
+        for file in 0..8 {
+            for rank in 0..8 {
+                let from = Position::new(file, rank);
+                if let Some(piece) = board.get_piece(&from) {
+                    if piece.color == attacker_color {
+                        // Check if this piece can attack the target square
+                        let test_move = ChessMove::new(from, position, MoveFlags::NONE);
+                        
+                        // Create a temporary validator for this board state
+                        let temp_validator = MoveValidator::new(board, attacker_color);
+                        
+                        // Use basic movement validation
+                        let can_attack = match piece.piece_type {
+                            PieceType::Pawn => {
+                                // Pawns attack diagonally
+                                let file_diff = (position.file as i8 - from.file as i8).abs();
+                                let rank_diff = position.rank as i8 - from.rank as i8;
+                                let direction = attacker_color.pawn_direction() as i8;
+                                file_diff == 1 && rank_diff == direction
+                            }
+                            PieceType::Knight => temp_validator.is_legal_knight_move(&test_move),
+                            PieceType::Bishop => temp_validator.is_legal_bishop_move(&test_move),
+                            PieceType::Rook => temp_validator.is_legal_rook_move(&test_move),
+                            PieceType::Queen => temp_validator.is_legal_queen_move(&test_move),
                             PieceType::King => {
                                 let file_diff = (position.file as i8 - from.file as i8).abs();
                                 let rank_diff = (position.rank as i8 - from.rank as i8).abs();

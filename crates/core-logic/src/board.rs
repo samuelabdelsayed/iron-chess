@@ -97,13 +97,13 @@ impl ChessBoard {
         if chess_move.is_castling() {
             let rank = chess_move.from.rank;
             if chess_move.flags.contains(MoveFlags::CASTLING_KINGSIDE) {
-                // Move rook
+                // Move rook from h-file (7) to e-file (4)
                 let rook = self.remove_piece(&Position::new(7, rank)).expect("No rook for castling");
-                self.set_piece(Position::new(5, rank), rook);
+                self.set_piece(Position::new(4, rank), rook);
             } else {
-                // Queenside castling
+                // Queenside castling: move rook from a-file (0) to c-file (2)
                 let rook = self.remove_piece(&Position::new(0, rank)).expect("No rook for castling");
-                self.set_piece(Position::new(3, rank), rook);
+                self.set_piece(Position::new(2, rank), rook);
             }
         }
 

@@ -91,11 +91,22 @@ impl GameState {
     pub fn is_game_over(&self) -> Option<GameResult> {
         let legal_moves = self.legal_moves();
         
+        eprintln!("🔍 Checking game over for {:?}: {} legal moves", self.current_turn, legal_moves.len());
+        
         if legal_moves.is_empty() {
             if self.is_in_check() {
+                eprintln!("✓ CHECKMATE detected: {:?} has no moves and is in check", self.current_turn);
                 return Some(GameResult::Checkmate(self.current_turn.opposite()));
             } else {
+                eprintln!("✓ STALEMATE detected: {:?} has no moves but not in check", self.current_turn);
                 return Some(GameResult::Stalemate);
+            }
+        }
+        
+        // Log a few example moves for debugging
+        if legal_moves.len() <= 5 {
+            for (i, mv) in legal_moves.iter().enumerate() {
+                eprintln!("  Move {}: {:?} -> {:?}", i+1, mv.from, mv.to);
             }
         }
 
