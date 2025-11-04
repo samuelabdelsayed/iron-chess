@@ -87,6 +87,7 @@ fn main() {
         .add_systems(Update, (
             animate_battle_sequence,
         ).run_if(in_state(AppState::BattleAnimation)))
+        .add_systems(OnExit(AppState::BattleAnimation), cleanup_battle_state)
         .add_systems(Update, (
             replay_director_system,
         ).run_if(in_state(AppState::Replay)))
@@ -2751,7 +2752,7 @@ fn animate_battle_sequence(
                         } else {
                             // Restore non-participant pieces to their original scale
                             if transform.scale == Vec3::ZERO {
-                                transform.scale = Vec3::splat(0.4);
+                                transform.scale = Vec3::splat(1.0);
                             }
                         }
                     }
@@ -2801,6 +2802,27 @@ fn animate_battle_sequence(
                     }
                 }
             }
+        }
+    }
+}
+
+/// Cleanup battle state when exiting battle animation
+fn cleanup_battle_state(
+    mut pieces_query: Query<(Entity, &mut Transform, Option<&BattleParticipant>), With<ChessPiece>>,
+    mut commands: Commands,
+) {
+    info!("🧹 Cleaning up battle state - restoring all pieces to normal scale");
+    
+    // Restore all pieces to normal scale (1.0) and remove battle participant components
+    for (entity, mut transform, participant) in pieces_query.iter_mut() {
+        // Reset scale to normal if it's not zero (captured pieces stay hidden)
+        if transform.scale != Vec3::ZERO {
+            transform.scale = Vec3::splat(1.0);
+        }
+        
+        // Remove battle participant component if present
+        if participant.is_some() {
+            commands.entity(entity).remove::<BattleParticipant>();
         }
     }
 }
