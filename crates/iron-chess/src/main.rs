@@ -64,6 +64,8 @@ fn main() {
             spawn_chess_pieces,
             // Update camera to player's perspective
             update_camera_for_player,
+            // Setup undo button UI
+            setup_undo_button,
         ))
         .add_systems(OnEnter(AppState::AIThinking), (
             update_camera_for_player,
@@ -77,6 +79,7 @@ fn main() {
         ).run_if(in_state(AppState::PlayerTurn)))
         .add_systems(Update, camera_controls.run_if(in_state(AppState::PlayerTurn)))
         .add_systems(Update, handle_undo_input.run_if(in_state(AppState::PlayerTurn)))
+        .add_systems(Update, handle_undo_button.run_if(in_state(AppState::PlayerTurn)))
         .add_systems(Update, (
             ai_thinking_system,
             ai_move_delay_system,
@@ -2942,6 +2945,211 @@ fn replay_director_system(
 #[derive(Component)]
 struct GameOverUI;
 
+/// Component marking undo button UI
+#[derive(Component)]
+struct UndoButton;
+
+/// Setup undo button in bottom-left corner
+fn setup_undo_button(
+    mut commands: Commands,
+) {
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                left: Val::Px(20.0),
+                bottom: Val::Px(20.0),
+                ..default()
+            },
+            ..default()
+        },
+        UndoButton,
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            ButtonBundle {
+                style: Style {
+                    width: Val::Px(120.0),
+                    height: Val::Px(50.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.9)),
+                border_color: BorderColor(Color::srgb(0.5, 0.5, 0.6)),
+                ..default()
+            },
+            UndoButton,
+        ))
+        .with_children(|button| {
+            button.spawn(TextBundle::from_section(
+                "↶ UNDO (U)",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::srgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+        });
+    });
+}
+
+/// Handle undo button clicks
+fn handle_undo_button(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<UndoButton>),
+    >,
+    mut game_state: ResMut<ChessGameState>,
+    mut pieces_query: Query<(Entity, &mut ChessPiece, &mut Transform), Without<CapturedPiece>>,
+    mut captured_query: Query<(Entity, &ChessPiece, &mut Transform, &CapturedPiece)>,
+    mut commands: Commands,
+) {
+    // Handle button click
+    for (interaction, mut color) in interaction_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = BackgroundColor(Color::srgba(0.3, 0.5, 0.7, 0.9));
+                // Trigger undo logic
+                perform_undo(&mut game_state, &mut pieces_query, &mut captured_query, &mut commands);
+            }
+            Interaction::Hovered => {
+                *color = BackgroundColor(Color::srgba(0.25, 0.35, 0.5, 0.9));
+            }
+            Interaction::None => {
+                *color = BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.9));
+            }
+        }
+    }
+}
+
+/// Perform the undo logic (shared between button and keyboard)
+fn perform_undo(
+    game_state: &mut ResMut<ChessGameState>,
+    pieces_query: &mut Query<(Entity, &mut ChessPiece, &mut Transform), Without<CapturedPiece>>,
+    captured_query: &mut Query<(Entity, &ChessPiece, &mut Transform, &CapturedPiece)>,
+    commands: &mut Commands,
+) {
+    // Undo the last move if there is a move history
+    if game_state.game.move_history.is_empty() {
+        info!("⏮️ No moves to undo!");
+        return;
+    }
+    
+    info!("⏮️ Undoing last move...");
+    
+    // Clear any current selection
+    game_state.selected_piece = None;
+    game_state.valid_moves.clear();
+    
+    // Get the last move from history
+    if let Some(last_move) = game_state.game.move_history.pop() {
+        info!("✅ Undoing move: {} -> {}", last_move.from.to_algebraic(), last_move.to.to_algebraic());
+        
+        // Get the piece type that was at the destination
+        let moving_piece = game_state.game.board.get_piece(&last_move.to);
+        
+        if let Some(piece_at_dest) = moving_piece {
+            // Move the piece back to its original position on the board
+            game_state.game.board.remove_piece(&last_move.to);
+            game_state.game.board.set_piece(last_move.from, Piece {
+                has_moved: false, // Reset has_moved flag
+                ..piece_at_dest
+            });
+            
+            // Update the 3D piece position
+            for (_entity, mut piece, mut transform) in pieces_query.iter_mut() {
+                if piece.position == last_move.to 
+                    && piece.piece_type == piece_at_dest.piece_type
+                    && piece.color == piece_at_dest.color {
+                    piece.position = last_move.from;
+                    transform.translation = Vec3::new(
+                        last_move.from.file as f32 - 3.5,
+                        0.5,
+                        last_move.from.rank as f32 - 3.5,
+                    );
+                    info!("🔄 Moved piece back from {} to {}", last_move.to.to_algebraic(), last_move.from.to_algebraic());
+                    break;
+                }
+            }
+            
+            // Restore captured piece if there was one
+            if last_move.is_capture() {
+                // Find the most recently captured piece of the opposite color
+                let mut captured_pieces: Vec<_> = captured_query.iter_mut().collect();
+                captured_pieces.sort_by_key(|(_, _, _, cap)| std::cmp::Reverse(cap.capture_index));
+                
+                if let Some(cap_tuple) = captured_pieces.first_mut() {
+                    let (entity, piece, transform, _cap) = cap_tuple;
+                    if piece.color != piece_at_dest.color {
+                        // Restore the piece to the board
+                        let restored_piece = Piece::new(piece.piece_type, piece.color);
+                        game_state.game.board.set_piece(last_move.to, restored_piece);
+                        
+                        // Update 3D position and remove captured marker
+                        transform.translation = Vec3::new(
+                            last_move.to.file as f32 - 3.5,
+                            0.5,
+                            last_move.to.rank as f32 - 3.5,
+                        );
+                        transform.scale = Vec3::splat(1.0);
+                        commands.entity(*entity).remove::<CapturedPiece>();
+                        
+                        // Decrement captured count
+                        if piece.color == ChessColor::White {
+                            game_state.white_captured_count = game_state.white_captured_count.saturating_sub(1);
+                        } else {
+                            game_state.black_captured_count = game_state.black_captured_count.saturating_sub(1);
+                        }
+                        
+                        info!("♻️ Restored captured {:?} {:?} to {}", piece.color, piece.piece_type, last_move.to.to_algebraic());
+                    }
+                }
+            }
+            
+            // Handle castling undo
+            if last_move.is_castling() {
+                let is_kingside = last_move.to.file > last_move.from.file;
+                let rook_from_file = if is_kingside { 7 } else { 0 };
+                let rook_to_file = if is_kingside { 4 } else { 2 };
+                let rank = last_move.from.rank;
+                
+                // Move rook back on board
+                if let Some(rook_piece) = game_state.game.board.remove_piece(&Position::new(rook_to_file, rank)) {
+                    game_state.game.board.set_piece(Position::new(rook_from_file, rank), Piece {
+                        has_moved: false,
+                        ..rook_piece
+                    });
+                }
+                
+                // Move rook back in 3D
+                for (_entity, mut piece, mut transform) in pieces_query.iter_mut() {
+                    if piece.piece_type == core_logic::PieceType::Rook 
+                        && piece.color == piece_at_dest.color
+                        && piece.position.file == rook_to_file 
+                        && piece.position.rank == rank {
+                        piece.position = Position::new(rook_from_file, rank);
+                        transform.translation = Vec3::new(
+                            rook_from_file as f32 - 3.5,
+                            0.5,
+                            rank as f32 - 3.5,
+                        );
+                        info!("🏰 Moved castling rook back to {}", Position::new(rook_from_file, rank).to_algebraic());
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Switch turn back
+        game_state.game.current_turn = game_state.game.current_turn.opposite();
+        
+    } else {
+        info!("❌ Failed to undo move");
+    }
+}
+
 /// Setup game over screen
 fn setup_game_over_screen(
     mut commands: Commands,
@@ -3056,123 +3264,7 @@ fn handle_undo_input(
     mut commands: Commands,
 ) {
     if keyboard.just_pressed(KeyCode::KeyU) {
-        // Undo the last move if there is a move history
-        if game_state.game.move_history.is_empty() {
-            info!("⏮️ No moves to undo!");
-            return;
-        }
-        
-        info!("⏮️ Undoing last move...");
-        
-        // Clear any current selection
-        game_state.selected_piece = None;
-        game_state.valid_moves.clear();
-        
-        // Get the last move from history
-        if let Some(last_move) = game_state.game.move_history.pop() {
-            info!("✅ Undoing move: {} -> {}", last_move.from.to_algebraic(), last_move.to.to_algebraic());
-            
-            // Get the piece type that was at the destination
-            let moving_piece = game_state.game.board.get_piece(&last_move.to);
-            
-            if let Some(piece_at_dest) = moving_piece {
-                // Move the piece back to its original position on the board
-                game_state.game.board.remove_piece(&last_move.to);
-                game_state.game.board.set_piece(last_move.from, Piece {
-                    has_moved: false, // Reset has_moved flag
-                    ..piece_at_dest
-                });
-                
-                // Update the 3D piece position
-                for (_entity, mut piece, mut transform) in pieces_query.iter_mut() {
-                    if piece.position == last_move.to 
-                        && piece.piece_type == piece_at_dest.piece_type
-                        && piece.color == piece_at_dest.color {
-                        piece.position = last_move.from;
-                        transform.translation = Vec3::new(
-                            last_move.from.file as f32 - 3.5,
-                            0.5,
-                            last_move.from.rank as f32 - 3.5,
-                        );
-                        info!("🔄 Moved piece back from {} to {}", last_move.to.to_algebraic(), last_move.from.to_algebraic());
-                        break;
-                    }
-                }
-                
-                // Restore captured piece if there was one
-                if last_move.is_capture() {
-                    // Find the most recently captured piece of the opposite color
-                    let mut captured_pieces: Vec<_> = captured_query.iter_mut().collect();
-                    captured_pieces.sort_by_key(|(_, _, _, cap)| std::cmp::Reverse(cap.capture_index));
-                    
-                    if let Some(cap_tuple) = captured_pieces.first_mut() {
-                        let (entity, piece, transform, _cap) = cap_tuple;
-                        if piece.color != piece_at_dest.color {
-                            // Restore the piece to the board
-                            let restored_piece = Piece::new(piece.piece_type, piece.color);
-                            game_state.game.board.set_piece(last_move.to, restored_piece);
-                            
-                            // Update 3D position and remove captured marker
-                            transform.translation = Vec3::new(
-                                last_move.to.file as f32 - 3.5,
-                                0.5,
-                                last_move.to.rank as f32 - 3.5,
-                            );
-                            transform.scale = Vec3::splat(1.0);
-                            commands.entity(*entity).remove::<CapturedPiece>();
-                            
-                            // Decrement captured count
-                            if piece.color == ChessColor::White {
-                                game_state.white_captured_count = game_state.white_captured_count.saturating_sub(1);
-                            } else {
-                                game_state.black_captured_count = game_state.black_captured_count.saturating_sub(1);
-                            }
-                            
-                            info!("♻️ Restored captured {:?} {:?} to {}", piece.color, piece.piece_type, last_move.to.to_algebraic());
-                        }
-                    }
-                }
-                
-                // Handle castling undo
-                if last_move.is_castling() {
-                    let is_kingside = last_move.to.file > last_move.from.file;
-                    let rook_from_file = if is_kingside { 7 } else { 0 };
-                    let rook_to_file = if is_kingside { 4 } else { 2 };
-                    let rank = last_move.from.rank;
-                    
-                    // Move rook back on board
-                    if let Some(rook_piece) = game_state.game.board.remove_piece(&Position::new(rook_to_file, rank)) {
-                        game_state.game.board.set_piece(Position::new(rook_from_file, rank), Piece {
-                            has_moved: false,
-                            ..rook_piece
-                        });
-                    }
-                    
-                    // Move rook back in 3D
-                    for (_entity, mut piece, mut transform) in pieces_query.iter_mut() {
-                        if piece.piece_type == core_logic::PieceType::Rook 
-                            && piece.color == piece_at_dest.color
-                            && piece.position.file == rook_to_file 
-                            && piece.position.rank == rank {
-                            piece.position = Position::new(rook_from_file, rank);
-                            transform.translation = Vec3::new(
-                                rook_from_file as f32 - 3.5,
-                                0.5,
-                                rank as f32 - 3.5,
-                            );
-                            info!("🏰 Moved castling rook back to {}", Position::new(rook_from_file, rank).to_algebraic());
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Switch turn back
-            game_state.game.current_turn = game_state.game.current_turn.opposite();
-            
-        } else {
-            info!("❌ Failed to undo move");
-        }
+        perform_undo(&mut game_state, &mut pieces_query, &mut captured_query, &mut commands);
     }
 }
 
