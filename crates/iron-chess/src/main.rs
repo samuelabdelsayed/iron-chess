@@ -2567,15 +2567,15 @@ fn animate_battle_sequence(
                                         shield_transform.translation = transform.translation + Vec3::new(-0.4, 0.4, 0.0);
                                         shield_transform.rotation = Quat::from_rotation_y(-phase_progress * std::f32::consts::PI);
                                     }
+                                }
+                            }
+                        } else {
+                            // Restore non-participant pieces to normal
+                            if transform.scale == Vec3::ZERO {
+                                transform.scale = Vec3::splat(1.0);
                             }
                         }
-                    } else {
-                        // Restore non-participant pieces to normal
-                        if transform.scale == Vec3::ZERO {
-                            transform.scale = Vec3::splat(1.0);
-                        }
                     }
-                }
                 
                 if phase_progress > 0.5 {
                     info!("⚔️ Warriors clash!");
@@ -3134,7 +3134,7 @@ fn perform_undo(
             if last_move.is_castling() {
                 let is_kingside = last_move.to.file > last_move.from.file;
                 let rook_from_file = if is_kingside { 7 } else { 0 };
-                let rook_to_file = if is_kingside { 4 } else { 2 };
+                let rook_to_file = if is_kingside { 5 } else { 3 };
                 let rank = last_move.from.rank;
                 
                 // Move rook back on board
