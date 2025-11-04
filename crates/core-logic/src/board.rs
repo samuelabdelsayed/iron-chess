@@ -59,8 +59,8 @@ impl ChessBoard {
             PieceType::Rook,
             PieceType::Knight,
             PieceType::Bishop,
-            PieceType::Queen,    // Queen on d-file (index 3)
-            PieceType::King,     // King on e-file (index 4) - standard position
+            PieceType::Queen,    // Queen on d-file (index 3) - d1
+            PieceType::King,     // King on e-file (index 4) - e1 (USER'S CUSTOM LAYOUT)
             PieceType::Bishop,
             PieceType::Knight,
             PieceType::Rook,
