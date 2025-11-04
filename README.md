@@ -1,5 +1,7 @@
 # Iron Chess ⚔️🏰
 
+![Iron Chess Board](screenshot.png)
+
 Immersive 3D medieval chess built with Rust and the Bevy game engine. Experience chess as an epic battlefield with physically-based rendering, atmospheric lighting, and cinematic battle animations when pieces clash!
 
 ## ✨ Features
