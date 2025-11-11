@@ -99,17 +99,17 @@ impl<'a> MoveValidator<'a> {
 
         // Special handling for king castling moves
         if piece.piece_type == PieceType::King {
-            // Add kingside castling (King e->g)
+            // Add kingside castling (King d->f, King on d-file)
             if self.board.can_castle_kingside(piece.color) {
-                let to = Position::new(6, from.rank);
+                let to = Position::new(5, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_KINGSIDE);
                 if self.is_legal_move(&castle_move).unwrap_or(false) {
                     moves.push(castle_move);
                 }
             }
-            // Add queenside castling (King e->c)
+            // Add queenside castling (King d->b, King on d-file)
             if self.board.can_castle_queenside(piece.color) {
-                let to = Position::new(2, from.rank);
+                let to = Position::new(1, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_QUEENSIDE);
                 if self.is_legal_move(&castle_move).unwrap_or(false) {
                     moves.push(castle_move);
@@ -246,14 +246,14 @@ impl<'a> MoveValidator<'a> {
             return true;
         }
 
-        // Castling: King on e-file (4) can castle kingside to g (6) = 2 squares, or queenside to c (2) = 2 squares
+        // Castling: King on d-file (3) can castle kingside to f (5) = 2 squares, or queenside to b (1) = 2 squares
         if rank_diff == 0 {
-            // Kingside castling (e->g, 2 squares)
-            if file_diff == 2 && chess_move.to.file == 6 && self.board.can_castle_kingside(color) {
+            // Kingside castling (d->f, 2 squares)
+            if file_diff == 2 && chess_move.to.file == 5 && self.board.can_castle_kingside(color) {
                 return self.is_castling_legal(chess_move, true);
             }
-            // Queenside castling (e->c, 2 squares)
-            if file_diff == 2 && chess_move.to.file == 2 && self.board.can_castle_queenside(color) {
+            // Queenside castling (d->b, 2 squares)
+            if file_diff == 2 && chess_move.to.file == 1 && self.board.can_castle_queenside(color) {
                 return self.is_castling_legal(chess_move, false);
             }
         }
@@ -297,17 +297,17 @@ impl<'a> MoveValidator<'a> {
                 _ => return false, // No rook found or wrong piece
             }
             
-            // King on e-file (4), castles to g-file (6)
-            // Check squares between king and rook are empty (f, g files = 5,6)
-            for file in 5..7 {
+            // King on d-file (3), castles to f-file (5)
+            // Check squares between king and rook are empty (e, f files = 4,5)
+            for file in 4..6 {
                 if self.board.get_piece(&Position::new(file, rank)).is_some() {
                     return false;
                 }
             }
             
             // Check king doesn't move through or into check
-            // King moves from e(4) -> f(5) -> g(6), so check files 4,5,6
-            for file in 4..=6 {
+            // King moves from d(3) -> e(4) -> f(5), so check files 3,4,5
+            for file in 3..=5 {
                 let test_pos = Position::new(file, rank);
                 if self.is_square_attacked(test_pos, color) {
                     return false;
@@ -321,17 +321,17 @@ impl<'a> MoveValidator<'a> {
                 _ => return false, // No rook found or wrong piece
             }
             
-            // King on e-file (4), castles to c-file (2)
-            // Queenside: Check squares between king and rook are empty (b, c, d files = 1,2,3)
-            for file in 1..4 {
+            // King on d-file (3), castles to b-file (1)
+            // Queenside: Check squares between king and rook are empty (b, c files = 1,2)
+            for file in 1..3 {
                 if self.board.get_piece(&Position::new(file, rank)).is_some() {
                     return false;
                 }
             }
             
             // Check king doesn't move through or into check
-            // King moves from e(4) -> d(3) -> c(2), so check files 4,3,2
-            for file in 2..=4 {
+            // King moves from d(3) -> c(2) -> b(1), so check files 3,2,1
+            for file in 1..=3 {
                 let test_pos = Position::new(file, rank);
                 if self.is_square_attacked(test_pos, color) {
                     return false;

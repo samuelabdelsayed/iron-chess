@@ -59,8 +59,8 @@ impl ChessBoard {
             PieceType::Rook,
             PieceType::Knight,
             PieceType::Bishop,
-            PieceType::Queen,    // Queen on d-file (index 3) - d1
-            PieceType::King,     // King on e-file (index 4) - e1 (USER'S CUSTOM LAYOUT)
+            PieceType::King,     // King on d-file (index 3) - d1 (USER'S ORIGINAL CUSTOM LAYOUT)
+            PieceType::Queen,    // Queen on e-file (index 4) - e1 (USER'S ORIGINAL CUSTOM LAYOUT)
             PieceType::Bishop,
             PieceType::Knight,
             PieceType::Rook,
@@ -97,13 +97,13 @@ impl ChessBoard {
         if chess_move.is_castling() {
             let rank = chess_move.from.rank;
             if chess_move.flags.contains(MoveFlags::CASTLING_KINGSIDE) {
-                // Kingside: King e->g, Rook h->f
+                // Kingside: King d->f, Rook h->e (King on d-file)
                 let rook = self.remove_piece(&Position::new(7, rank)).expect("No rook for castling");
-                self.set_piece(Position::new(5, rank), rook);
+                self.set_piece(Position::new(4, rank), rook);
             } else {
-                // Queenside castling: King e->c, Rook a->d
+                // Queenside castling: King d->b, Rook a->c (King on d-file)
                 let rook = self.remove_piece(&Position::new(0, rank)).expect("No rook for castling");
-                self.set_piece(Position::new(3, rank), rook);
+                self.set_piece(Position::new(2, rank), rook);
             }
         }
 

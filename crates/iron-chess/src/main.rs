@@ -1378,9 +1378,9 @@ fn handle_mouse_click(
                         // Move the rook
                         let rank = selected_pos.rank;
                         if chess_move.flags.contains(core_logic::MoveFlags::CASTLING_KINGSIDE) {
-                            // Kingside: rook moves from h-file (7) to f-file (5)
+                            // Kingside: rook moves from h-file (7) to e-file (4) - King on d-file
                             let rook_from = core_logic::Position::new(7, rank);
-                            let rook_to = core_logic::Position::new(5, rank);
+                            let rook_to = core_logic::Position::new(4, rank);
                             for (entity, piece, _) in pieces_query.iter() {
                                 if piece.position == rook_from {
                                     commands.entity(entity).insert(PieceAnimation {
@@ -1393,9 +1393,9 @@ fn handle_mouse_click(
                                 }
                             }
                         } else {
-                            // Queenside: rook moves from a-file (0) to d-file (3)
+                            // Queenside: rook moves from a-file (0) to c-file (2) - King on d-file
                             let rook_from = core_logic::Position::new(0, rank);
-                            let rook_to = core_logic::Position::new(3, rank);
+                            let rook_to = core_logic::Position::new(2, rank);
                             for (entity, piece, _) in pieces_query.iter() {
                                 if piece.position == rook_from {
                                     commands.entity(entity).insert(PieceAnimation {
@@ -2706,7 +2706,9 @@ fn animate_battle_sequence(
                             if part.role == BattleRole::Attacker {
                                 // Attacker returns to position triumphantly
                                 transform.translation = part.initial_position;
-                                transform.scale = (part.initial_scale * 2.5).lerp(part.initial_scale, phase_progress);
+                                // Always restore to correct piece scale (0.4), not initial_scale which may be wrong
+                                let correct_scale = Vec3::splat(0.4);
+                                transform.scale = (correct_scale * 2.5).lerp(correct_scale, phase_progress);
                                 transform.rotation = Quat::IDENTITY;
                                 
                                 // Fade out sword with attacker
@@ -2724,7 +2726,7 @@ fn animate_battle_sequence(
                                 
                                 // Ensure final scale is exactly correct at end
                                 if phase_progress > 0.99 {
-                                    transform.scale = part.initial_scale;
+                                    transform.scale = correct_scale;
                                 }
                             } else {
                                 // Defender fades away (will be captured)
@@ -2750,9 +2752,9 @@ fn animate_battle_sequence(
                                 commands.entity(entity).remove::<BattleParticipant>();
                             }
                         } else {
-                            // Restore non-participant pieces to their original scale
-                            if transform.scale == Vec3::ZERO {
-                                transform.scale = Vec3::splat(1.0);
+                            // Restore non-participant pieces to their correct scale (0.4)
+                            if transform.scale == Vec3::ZERO || transform.scale != Vec3::splat(0.4) {
+                                transform.scale = Vec3::splat(0.4);
                             }
                         }
                     }
@@ -2811,13 +2813,13 @@ fn cleanup_battle_state(
     mut pieces_query: Query<(Entity, &mut Transform, Option<&BattleParticipant>), With<ChessPiece>>,
     mut commands: Commands,
 ) {
-    info!("🧹 Cleaning up battle state - restoring all pieces to normal scale");
+    info!("🧹 Cleaning up battle state - restoring all pieces to correct scale (0.4)");
     
-    // Restore all pieces to normal scale (1.0) and remove battle participant components
+    // Restore all pieces to correct scale (0.4) and remove battle participant components
     for (entity, mut transform, participant) in pieces_query.iter_mut() {
-        // Reset scale to normal if it's not zero (captured pieces stay hidden)
+        // Reset scale to correct piece scale if it's not zero (captured pieces stay hidden)
         if transform.scale != Vec3::ZERO {
-            transform.scale = Vec3::splat(1.0);
+            transform.scale = Vec3::splat(0.4);
         }
         
         // Remove battle participant component if present
@@ -3134,7 +3136,7 @@ fn perform_undo(
             if last_move.is_castling() {
                 let is_kingside = last_move.to.file > last_move.from.file;
                 let rook_from_file = if is_kingside { 7 } else { 0 };
-                let rook_to_file = if is_kingside { 5 } else { 3 };
+                let rook_to_file = if is_kingside { 4 } else { 2 }; // King on d-file
                 let rank = last_move.from.rank;
                 
                 // Move rook back on board
