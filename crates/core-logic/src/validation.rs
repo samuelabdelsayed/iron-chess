@@ -99,17 +99,17 @@ impl<'a> MoveValidator<'a> {
 
         // Special handling for king castling moves
         if piece.piece_type == PieceType::King {
-            // Add kingside castling (King d->f, King on d-file)
+            // Add kingside castling (King e->g, standard chess)
             if self.board.can_castle_kingside(piece.color) {
-                let to = Position::new(5, from.rank);
+                let to = Position::new(6, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_KINGSIDE);
                 if self.is_legal_move(&castle_move).unwrap_or(false) {
                     moves.push(castle_move);
                 }
             }
-            // Add queenside castling (King d->b, King on d-file)
+            // Add queenside castling (King e->c, standard chess)
             if self.board.can_castle_queenside(piece.color) {
-                let to = Position::new(1, from.rank);
+                let to = Position::new(2, from.rank);
                 let castle_move = ChessMove::new(*from, to, MoveFlags::CASTLING_QUEENSIDE);
                 if self.is_legal_move(&castle_move).unwrap_or(false) {
                     moves.push(castle_move);
@@ -149,24 +149,8 @@ impl<'a> MoveValidator<'a> {
         }
         let king_pos = king_pos.unwrap();
 
-        // Check if any opponent piece attacks king
-        for file in 0..8 {
-            for rank in 0..8 {
-                let pos = Position::new(file, rank);
-                if let Some(piece) = self.board.get_piece(&pos) {
-                    if piece.color != self.current_color {
-                        let test_move = ChessMove::new(pos, king_pos, MoveFlags::CAPTURE);
-                        // Create validator for opponent
-                        let opponent_validator = MoveValidator::new(self.board, piece.color);
-                        if opponent_validator.is_legal_move(&test_move).unwrap_or(false) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        false
+        // Use the helper method to check if the king's square is attacked
+        self.is_square_attacked(king_pos, self.current_color)
     }
 
     fn is_legal_pawn_move(&self, chess_move: &ChessMove, color: Color) -> bool {
@@ -246,14 +230,14 @@ impl<'a> MoveValidator<'a> {
             return true;
         }
 
-        // Castling: King on d-file (3) can castle kingside to f (5) = 2 squares, or queenside to b (1) = 2 squares
+        // Castling: King on e-file (4) can castle kingside to g (6) = 2 squares, or queenside to c (2) = 2 squares
         if rank_diff == 0 {
-            // Kingside castling (d->f, 2 squares)
-            if file_diff == 2 && chess_move.to.file == 5 && self.board.can_castle_kingside(color) {
+            // Kingside castling (e->g, 2 squares)
+            if file_diff == 2 && chess_move.to.file == 6 && self.board.can_castle_kingside(color) {
                 return self.is_castling_legal(chess_move, true);
             }
-            // Queenside castling (d->b, 2 squares)
-            if file_diff == 2 && chess_move.to.file == 1 && self.board.can_castle_queenside(color) {
+            // Queenside castling (e->c, 2 squares)
+            if file_diff == 2 && chess_move.to.file == 2 && self.board.can_castle_queenside(color) {
                 return self.is_castling_legal(chess_move, false);
             }
         }
@@ -265,14 +249,40 @@ impl<'a> MoveValidator<'a> {
         let file_step = (chess_move.to.file as i8 - chess_move.from.file as i8).signum();
         let rank_step = (chess_move.to.rank as i8 - chess_move.from.rank as i8).signum();
 
+        // If both steps are 0, the move is to the same square (shouldn't happen, but return true)
+        if file_step == 0 && rank_step == 0 {
+            return true;
+        }
+
         let mut current_file = chess_move.from.file as i8 + file_step;
         let mut current_rank = chess_move.from.rank as i8 + rank_step;
 
-        while current_file != chess_move.to.file as i8 || current_rank != chess_move.to.rank as i8 {
+        // Safety limit to prevent infinite loops
+        let max_iterations = 8; // Maximum distance on a chess board
+        let mut iterations = 0;
+
+        // Loop until we reach the destination square
+        loop {
+            iterations += 1;
+            if iterations > max_iterations {
+                return false; // Safety check - path too long
+            }
+
+            // Check if we've reached the destination
+            if current_file == chess_move.to.file as i8 && current_rank == chess_move.to.rank as i8 {
+                break;
+            }
+            
+            // Validate bounds before creating position
+            if current_file < 0 || current_file >= 8 || current_rank < 0 || current_rank >= 8 {
+                return false;
+            }
+            
             let pos = Position::new(current_file as u8, current_rank as u8);
             if self.board.get_piece(&pos).is_some() {
                 return false;
             }
+            
             current_file += file_step;
             current_rank += rank_step;
         }
