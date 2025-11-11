@@ -2704,8 +2704,13 @@ fn animate_battle_sequence(
                     for (entity, _piece, mut transform, participant) in pieces_query.iter_mut() {
                         if let Some(part) = participant {
                             if part.role == BattleRole::Attacker {
-                                // Attacker returns to position triumphantly
-                                transform.translation = part.initial_position;
+                                // Attacker moves to final destination position (where it captured)
+                                let final_position = if let Some(battle_info) = &battle_counter.pending_battle {
+                                    board_to_world_position(&battle_info.chess_move.to)
+                                } else {
+                                    part.initial_position // Fallback, should not happen
+                                };
+                                transform.translation = final_position;
                                 // Always restore to correct piece scale (0.4), not initial_scale which may be wrong
                                 let correct_scale = Vec3::splat(0.4);
                                 transform.scale = (correct_scale * 2.5).lerp(correct_scale, phase_progress);
