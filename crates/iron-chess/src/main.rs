@@ -84,6 +84,7 @@ fn main() {
             ai_thinking_system,
             ai_move_delay_system,
         ).run_if(in_state(AppState::AIThinking)))
+        .add_systems(OnEnter(AppState::BattleAnimation), start_battle_music)
         .add_systems(Update, (
             animate_battle_sequence,
         ).run_if(in_state(AppState::BattleAnimation)))
@@ -179,6 +180,10 @@ impl Default for BattleAnimationState {
         }
     }
 }
+
+/// Component to track battle music
+#[derive(Component)]
+struct BattleMusic;
 
 #[derive(PartialEq)]
 enum BattlePhase {
@@ -2814,11 +2819,40 @@ fn animate_battle_sequence(
 }
 
 /// Cleanup battle state when exiting battle animation
+/// Start battle music when entering battle animation state
+fn start_battle_music(
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    info!("🎵 Starting battle music");
+    
+    // Try to load battle music, but don't crash if file doesn't exist
+    let music_handle = asset_server.load("sounds/battle_music.ogg");
+    
+    commands.spawn((
+        AudioBundle {
+            source: music_handle,
+            settings: PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Loop,
+                volume: bevy::audio::Volume::new(0.5),
+                ..default()
+            },
+        },
+        BattleMusic,
+    ));
+}
+
 fn cleanup_battle_state(
     mut pieces_query: Query<(Entity, &mut Transform, Option<&BattleParticipant>), With<ChessPiece>>,
+    music_query: Query<Entity, With<BattleMusic>>,
     mut commands: Commands,
 ) {
     info!("🧹 Cleaning up battle state - restoring all pieces to correct scale (0.4)");
+    
+    // Stop and remove battle music
+    for entity in music_query.iter() {
+        commands.entity(entity).despawn();
+    }
     
     // Restore all pieces to correct scale (0.4) and remove battle participant components
     for (entity, mut transform, participant) in pieces_query.iter_mut() {
@@ -3096,11 +3130,7 @@ fn perform_undo(
                         && piece.piece_type == piece_at_dest.piece_type
                         && piece.color == piece_at_dest.color {
                         piece.position = last_move.from;
-                        transform.translation = Vec3::new(
-                            last_move.from.file as f32 - 3.5,
-                            0.6,
-                            last_move.from.rank as f32 - 3.5,
-                        );
+                        transform.translation = board_to_world_position(&last_move.from);
                         transform.scale = Vec3::splat(0.4);
                         info!("🔄 Moved piece back from {} to {}", last_move.to.to_algebraic(), last_move.from.to_algebraic());
                         break;
@@ -3121,11 +3151,7 @@ fn perform_undo(
                             game_state.game.board.set_piece(last_move.to, restored_piece);
                             
                             // Update 3D position and remove captured marker
-                            transform.translation = Vec3::new(
-                                last_move.to.file as f32 - 3.5,
-                                0.6,
-                                last_move.to.rank as f32 - 3.5,
-                            );
+                            transform.translation = board_to_world_position(&last_move.to);
                             transform.scale = Vec3::splat(0.4);
                             commands.entity(*entity).remove::<CapturedPiece>();
                             
@@ -3160,14 +3186,11 @@ fn perform_undo(
                             && piece.color == piece_at_dest.color
                             && piece.position.file == rook_to_file 
                             && piece.position.rank == rank {
-                            piece.position = Position::new(rook_from_file, rank);
-                            transform.translation = Vec3::new(
-                                rook_from_file as f32 - 3.5,
-                                0.6,
-                                rank as f32 - 3.5,
-                            );
+                            let rook_position = Position::new(rook_from_file, rank);
+                            piece.position = rook_position;
+                            transform.translation = board_to_world_position(&rook_position);
                             transform.scale = Vec3::splat(0.4);
-                            info!("🏰 Moved castling rook back to {}", Position::new(rook_from_file, rank).to_algebraic());
+                            info!("🏰 Moved castling rook back to {}", rook_position.to_algebraic());
                             break;
                         }
                     }
